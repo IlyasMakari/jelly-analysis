@@ -1,0 +1,11 @@
+{
+  "name": "mochatest",
+  "version": "0.0.1",
+  "scripts": {
+    "test": "mocha"
+  },
+  "devDependencies": {
+    "mocha": "^9.2.2",
+    "pirates": "^4.0.6"
+  }
+}
