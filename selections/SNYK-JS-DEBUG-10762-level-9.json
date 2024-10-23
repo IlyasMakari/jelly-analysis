@@ -1,0 +1,15 @@
+[
+  {
+    "package":"tevere",
+    "version":"0.2.1",
+    "dependency":"debug",
+    "dep_version":"2.2.0",
+    "order":8,
+    "id":"SNYK-JS-DEBUG-10762",
+    "vuln_name":"Regular Expression Denial of Service (ReDoS)",
+    "severity":"low",
+    "cve":"CVE-2017-16137",
+    "dep_transitive_count":618856,
+    "package_transitive_count":0
+  }
+]

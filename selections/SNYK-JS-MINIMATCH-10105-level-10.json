@@ -1,0 +1,93 @@
+[
+  {
+    "package":"ipfs-daemon",
+    "version":"0.3.1",
+    "dependency":"minimatch",
+    "dep_version":"0.2.14",
+    "order":9,
+    "id":"SNYK-JS-MINIMATCH-10105",
+    "vuln_name":"Regular Expression Denial of Service (ReDoS)",
+    "severity":"high",
+    "cve":"CVE-2016-10540",
+    "dep_transitive_count":611632,
+    "package_transitive_count":3
+  },
+  {
+    "package":"ipfs-level",
+    "version":"1.2.2",
+    "dependency":"minimatch",
+    "dep_version":"0.2.14",
+    "order":9,
+    "id":"SNYK-JS-MINIMATCH-10105",
+    "vuln_name":"Regular Expression Denial of Service (ReDoS)",
+    "severity":"high",
+    "cve":"CVE-2016-10540",
+    "dep_transitive_count":611632,
+    "package_transitive_count":1
+  },
+  {
+    "package":"computes-ipfs",
+    "version":"1.0.4",
+    "dependency":"minimatch",
+    "dep_version":"0.2.14",
+    "order":9,
+    "id":"SNYK-JS-MINIMATCH-10105",
+    "vuln_name":"Regular Expression Denial of Service (ReDoS)",
+    "severity":"high",
+    "cve":"CVE-2016-10540",
+    "dep_transitive_count":611632,
+    "package_transitive_count":0
+  },
+  {
+    "package":"ipfb",
+    "version":"0.0.2",
+    "dependency":"minimatch",
+    "dep_version":"0.2.14",
+    "order":9,
+    "id":"SNYK-JS-MINIMATCH-10105",
+    "vuln_name":"Regular Expression Denial of Service (ReDoS)",
+    "severity":"high",
+    "cve":"CVE-2016-10540",
+    "dep_transitive_count":611632,
+    "package_transitive_count":0
+  },
+  {
+    "package":"ipfs-iiif-db",
+    "version":"2.4.0",
+    "dependency":"minimatch",
+    "dep_version":"0.2.14",
+    "order":9,
+    "id":"SNYK-JS-MINIMATCH-10105",
+    "vuln_name":"Regular Expression Denial of Service (ReDoS)",
+    "severity":"high",
+    "cve":"CVE-2016-10540",
+    "dep_transitive_count":611632,
+    "package_transitive_count":0
+  },
+  {
+    "package":"ipfs-webpack-plugin",
+    "version":"0.1.0",
+    "dependency":"minimatch",
+    "dep_version":"0.2.14",
+    "order":9,
+    "id":"SNYK-JS-MINIMATCH-10105",
+    "vuln_name":"Regular Expression Denial of Service (ReDoS)",
+    "severity":"high",
+    "cve":"CVE-2016-10540",
+    "dep_transitive_count":611632,
+    "package_transitive_count":0
+  },
+  {
+    "package":"welcome-to-nomad",
+    "version":"1.0.0",
+    "dependency":"minimatch",
+    "dep_version":"0.2.14",
+    "order":9,
+    "id":"SNYK-JS-MINIMATCH-10105",
+    "vuln_name":"Regular Expression Denial of Service (ReDoS)",
+    "severity":"high",
+    "cve":"CVE-2016-10540",
+    "dep_transitive_count":611632,
+    "package_transitive_count":0
+  }
+]

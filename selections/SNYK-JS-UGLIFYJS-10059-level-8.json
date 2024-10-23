@@ -1,0 +1,93 @@
+[
+  {
+    "package":"biojs-vis-msa",
+    "version":"0.3.25",
+    "dependency":"uglify-js",
+    "dep_version":"2.2.5",
+    "order":7,
+    "id":"SNYK-JS-UGLIFYJS-10059",
+    "vuln_name":"Regular Expression Denial of Service (ReDoS)",
+    "severity":"medium",
+    "cve":"CVE-2015-8858",
+    "dep_transitive_count":604608,
+    "package_transitive_count":9
+  },
+  {
+    "package":"graft-broker",
+    "version":"0.0.1",
+    "dependency":"uglify-js",
+    "dep_version":"2.2.5",
+    "order":7,
+    "id":"SNYK-JS-UGLIFYJS-10059",
+    "vuln_name":"Regular Expression Denial of Service (ReDoS)",
+    "severity":"medium",
+    "cve":"CVE-2015-8858",
+    "dep_transitive_count":604608,
+    "package_transitive_count":3
+  },
+  {
+    "package":"grunt-manifoldjs",
+    "version":"0.1.4",
+    "dependency":"uglify-js",
+    "dep_version":"2.2.5",
+    "order":7,
+    "id":"SNYK-JS-UGLIFYJS-10059",
+    "vuln_name":"Regular Expression Denial of Service (ReDoS)",
+    "severity":"medium",
+    "cve":"CVE-2015-8858",
+    "dep_transitive_count":604608,
+    "package_transitive_count":2
+  },
+  {
+    "package":"nscale-kernel",
+    "version":"0.17.7",
+    "dependency":"uglify-js",
+    "dep_version":"2.2.5",
+    "order":7,
+    "id":"SNYK-JS-UGLIFYJS-10059",
+    "vuln_name":"Regular Expression Denial of Service (ReDoS)",
+    "severity":"medium",
+    "cve":"CVE-2015-8858",
+    "dep_transitive_count":604608,
+    "package_transitive_count":2
+  },
+  {
+    "package":"@dattomy\/nscale-kernel",
+    "version":"0.17.10-0",
+    "dependency":"uglify-js",
+    "dep_version":"2.2.5",
+    "order":7,
+    "id":"SNYK-JS-UGLIFYJS-10059",
+    "vuln_name":"Regular Expression Denial of Service (ReDoS)",
+    "severity":"medium",
+    "cve":"CVE-2015-8858",
+    "dep_transitive_count":604608,
+    "package_transitive_count":1
+  },
+  {
+    "package":"cttv.expansionView",
+    "version":"0.0.6",
+    "dependency":"uglify-js",
+    "dep_version":"2.2.5",
+    "order":7,
+    "id":"SNYK-JS-UGLIFYJS-10059",
+    "vuln_name":"Regular Expression Denial of Service (ReDoS)",
+    "severity":"medium",
+    "cve":"CVE-2015-8858",
+    "dep_transitive_count":604608,
+    "package_transitive_count":0
+  },
+  {
+    "package":"grunt-manifold",
+    "version":"0.1.0",
+    "dependency":"uglify-js",
+    "dep_version":"2.2.5",
+    "order":7,
+    "id":"SNYK-JS-UGLIFYJS-10059",
+    "vuln_name":"Regular Expression Denial of Service (ReDoS)",
+    "severity":"medium",
+    "cve":"CVE-2015-8858",
+    "dep_transitive_count":604608,
+    "package_transitive_count":0
+  }
+]

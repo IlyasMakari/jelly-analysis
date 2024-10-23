@@ -1,0 +1,28 @@
+[
+  {
+    "package":"@beisen-phoenix\/field-lookup",
+    "version":"3.3.55",
+    "dependency":"node-sass",
+    "dep_version":"4.13.0",
+    "order":5,
+    "id":"SNYK-JS-NODESASS-541000",
+    "vuln_name":"Use After Free",
+    "severity":"high",
+    "cve":"CVE-2018-19827",
+    "dep_transitive_count":604608,
+    "package_transitive_count":3
+  },
+  {
+    "package":"@beisen-phoenix\/search-form",
+    "version":"3.3.53",
+    "dependency":"node-sass",
+    "dep_version":"4.13.0",
+    "order":5,
+    "id":"SNYK-JS-NODESASS-541000",
+    "vuln_name":"Use After Free",
+    "severity":"high",
+    "cve":"CVE-2018-19827",
+    "dep_transitive_count":604608,
+    "package_transitive_count":3
+  }
+]

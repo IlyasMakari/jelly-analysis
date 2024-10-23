@@ -1,0 +1,41 @@
+[
+  {
+    "package":"ipfs-test-apis",
+    "version":"0.1.0-beta.5",
+    "dependency":"lodash",
+    "dep_version":"1.0.2",
+    "order":10,
+    "id":"SNYK-JS-LODASH-73639",
+    "vuln_name":"Regular Expression Denial of Service (ReDoS)",
+    "severity":"medium",
+    "cve":"CVE-2019-1010266",
+    "dep_transitive_count":625461,
+    "package_transitive_count":0
+  },
+  {
+    "package":"orbit-web",
+    "version":"0.1.2",
+    "dependency":"lodash",
+    "dep_version":"1.0.2",
+    "order":10,
+    "id":"SNYK-JS-LODASH-73639",
+    "vuln_name":"Regular Expression Denial of Service (ReDoS)",
+    "severity":"medium",
+    "cve":"CVE-2019-1010266",
+    "dep_transitive_count":625461,
+    "package_transitive_count":0
+  },
+  {
+    "package":"tevere",
+    "version":"0.2.1",
+    "dependency":"lodash",
+    "dep_version":"1.0.2",
+    "order":10,
+    "id":"SNYK-JS-LODASH-73639",
+    "vuln_name":"Regular Expression Denial of Service (ReDoS)",
+    "severity":"medium",
+    "cve":"CVE-2019-1010266",
+    "dep_transitive_count":625461,
+    "package_transitive_count":0
+  }
+]
