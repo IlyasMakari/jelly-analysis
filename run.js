@@ -6,29 +6,6 @@ const spawn = require('child_process').spawn;
 var ls = require('npm-remote-ls').ls;
 const _ = require("lodash");
 
-// function runJelly(analysis_id, vuln_id, package, include_packages) {
-
-//     output = execSync(`\
-//     export NODE_OPTIONS="--max-old-space-size=65536"
-//     \
-//     npm run start --max-old-space-size=65536 -- \
-//     -j ~/mathesis/code/analysis/code/output/${analysis_id}.json \
-//     -m ~/mathesis/code/analysis/code/output/${analysis_id}.html \
-//     -b ~/mathesis/code/analysis/code \
-//     -v ~/mathesis/code/analysis/code/vulnerability_definitions/${vuln_id}.json \
-//     --api-exported \
-//     --approx \
-//     ~/mathesis/code/analysis/code/node_modules/${package} \
-//     --timeout 300 \
-//     --external-matches --proto \
-//     ${(include_packages.length > 0) ? "--include-packages "+include_packages.join(" ") : ""} \
-//     \
-//     `, { cwd: "../../jelly", maxBuffer: (10 * 1024 * 1024)}).toString()
-    
-//     fs.writeFileSync(`../code/output/${analysis_id}.txt`, output);
-
-// }
-
 function runJelly(analysis_id, vuln_id, package, include_packages) {
     return new Promise((resolve, reject) => {
         // Define the maximum time (in milliseconds) for the Jelly process to run
@@ -39,16 +16,16 @@ function runJelly(analysis_id, vuln_id, package, include_packages) {
             export NODE_OPTIONS="--max-old-space-size=65536"
             npm run start --max-old-space-size=65536 -- \
             --approx \
-            -j ~/mathesis/code/analysis/code/output/${analysis_id}.json \
-            -m ~/mathesis/code/analysis/code/output/${analysis_id}.html \
-            -b ~/mathesis/code/analysis/code \
-            -v ~/mathesis/code/analysis/code/vulnerability_definitions/${vuln_id}.json \
+            -j ../output/${analysis_id}.json \
+            -m ../output/${analysis_id}.html \
+            -b ../code \
+            -v ../vulnerability_definitions/${vuln_id}.json \
             --api-exported \
-            ~/mathesis/code/analysis/code/node_modules/${package} \
+            ../code/node_modules/${package} \
             --timeout 300 \
             --external-matches --proto \
             ${(include_packages.length > 0) ? "--include-packages " + include_packages.join(" ") : ""}
-        `], { cwd: "../../jelly", maxBuffer: (10 * 1024 * 1024) });
+        `], { cwd: "jelly-0.10.0", maxBuffer: (10 * 1024 * 1024) });
 
         // Set the timeout to kill the Jelly process if it runs too long
         const timeout = setTimeout(() => {
@@ -75,7 +52,7 @@ function runJelly(analysis_id, vuln_id, package, include_packages) {
             clearTimeout(timeout); // Clear the timeout if the process exits on its own
             if (code === 0) {
                 // Write output to file
-                fs.writeFileSync(`../code/output/${analysis_id}.txt`, output);
+                fs.writeFileSync(`output/${analysis_id}.txt`, output);
                 resolve();
             } else {
                 reject(new Error(`Jelly process exited with code ${code}`));
@@ -99,9 +76,9 @@ function findPaths(tree, targetKey, currentPath = []) {
 }
 
 function runAnalysis(analysis) {
-	execSync("rm -r node_modules || true", { cwd: "../code"}).toString();
-    execSync("rm package.json || true", { cwd: "../code"}).toString();
-    execSync("rm package-lock.json || true", { cwd: "../code"}).toString();
+	execSync("rm -rf ./* || true", { cwd: "code"}).toString();
+    let packageJsonString = `{"name": "code", "version": "1.0.0", "description": "", "main": "index.js", "scripts": {"test": "echo \\"Error: no test specified\\" && exit 1"}, "author": "", "license": "ISC"}`;
+    fs.writeFileSync('code/package.json', packageJsonString);
     console.log(`(${analysis.analysis_id}) Starting the level ${analysis.level} analysis of ${analysis.vuln_id}: ${analysis.package} -> ${analysis.dependency}`);
     
     
@@ -124,7 +101,7 @@ function runAnalysis(analysis) {
         // let install_timeout_seconds = 30;
 
         console.log(`Installing ${analysis.package}@${analysis.version}`)
-        npm_i = spawn(`npm`, ["i", `${analysis.package}@${analysis.version}`], { cwd: "../code", timeout: install_timeout_seconds * 1000});
+        npm_i = spawn(`npm`, ["i", `${analysis.package}@${analysis.version}`], { cwd: "code", timeout: install_timeout_seconds * 1000});
     
         var timeout = setTimeout(() => {
           try {
@@ -142,7 +119,7 @@ function runAnalysis(analysis) {
             ls(analysis.package, analysis.version, function(tree) {
                 try {
                     console.log(`Tree retrieved for ${analysis.package}@${analysis.version}`)
-                    fs.writeFileSync(`../code/output/${analysis.analysis_id}-deptree.json`, JSON.stringify(tree));
+                    fs.writeFileSync(`output/${analysis.analysis_id}-deptree.json`, JSON.stringify(tree));
                     const targetKey = `${analysis.dependency}@${analysis.dep_version}`;
                     const paths = findPaths(tree, targetKey).filter(path => path.length == analysis.level + 1);
                     const include_packages = [...new Set(paths.flat().map(e => e.substr(e, e.lastIndexOf('@'))))];
@@ -155,7 +132,6 @@ function runAnalysis(analysis) {
                         console.log(err);
                         reject(err);
                     });
-                    // execSync(`npm uninstall ${analysis.package}`, { cwd: "../code"}).toString();
                 } catch (error) {
                     reject(error);
                 }
@@ -171,7 +147,7 @@ function createSchedule(levels, vulnerabilities) {
     let analysis_id = 1;
     levels.forEach(i => {
         vulnerabilities.forEach(vuln => {
-            JSON.parse(fs.readFileSync(`../selections/${vuln}-level-${i}.json`, 'utf8')).forEach(selection => {
+            JSON.parse(fs.readFileSync(`selections/${vuln}-level-${i}.json`, 'utf8')).forEach(selection => {
                 tasks.push({
                     "analysis_id": analysis_id,
                     "vuln_id": selection.id,
@@ -192,14 +168,14 @@ function createSchedule(levels, vulnerabilities) {
 (async () => {
 
     planned_analyses = await createSchedule([1, 2, 3], ["SNYK-JS-LODASH-73638", "SNYK-JS-MINIMIST-559764", "SNYK-JS-KINDOF-537849", "SNYK-JS-MINIMATCH-10105", "SNYK-JS-QS-10407", "SNYK-JS-HOEK-12061", "SNYK-JS-DEBUG-10762", "SNYK-JS-YARGSPARSER-560381"]);
-    fs.writeFileSync(`../code/output/$dict.json`,  JSON.stringify(planned_analyses.map(a => _.omit(a, 'run')), null, 2));
+    fs.writeFileSync(`output/$dict.json`,  JSON.stringify(planned_analyses.map(a => _.omit(a, 'run')), null, 2));
     
     for(analysis of planned_analyses) {
     
         try {
             await runAnalysis(analysis)
         } catch (e) {
-            fs.writeFileSync(`../code/output/${analysis.analysis_id}`, `${e.name}: ${e.message}`);
+            fs.writeFileSync(`output/${analysis.analysis_id}`, `${e.name}: ${e.message}`);
         }
         
     }
