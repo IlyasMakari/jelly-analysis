@@ -5,6 +5,16 @@ const spawnSync = require('child_process').spawnSync;
 const spawn = require('child_process').spawn;
 var ls = require('npm-remote-ls').ls;
 const _ = require("lodash");
+const yargs = require('yargs');
+
+// Output folder name
+const now = new Date();
+const year = now.getFullYear();
+const month = String(now.getMonth() + 1).padStart(2, '0'); // Months are zero-based
+const day = String(now.getDate()).padStart(2, '0');
+const hours = String(now.getHours()).padStart(2, '0');
+const minutes = String(now.getMinutes()).padStart(2, '0');
+const outputString = `output/output-${year}-${month}-${day}-${hours}${minutes}`;
 
 function runJelly(analysis_id, vuln_id, package, include_packages) {
     return new Promise((resolve, reject) => {
@@ -16,8 +26,8 @@ function runJelly(analysis_id, vuln_id, package, include_packages) {
             export NODE_OPTIONS="--max-old-space-size=65536"
             npm run start --max-old-space-size=65536 -- \
             --approx \
-            -j ../output/${analysis_id}.json \
-            -m ../output/${analysis_id}.html \
+            -j ../${outputString}/${analysis_id}.json \
+            -m ../${outputString}/${analysis_id}.html \
             -b ../code \
             -v ../vulnerability_definitions/${vuln_id}.json \
             --api-exported \
@@ -52,7 +62,7 @@ function runJelly(analysis_id, vuln_id, package, include_packages) {
             clearTimeout(timeout); // Clear the timeout if the process exits on its own
             if (code === 0) {
                 // Write output to file
-                fs.writeFileSync(`output/${analysis_id}.txt`, output);
+                fs.writeFileSync(`${outputString}/${analysis_id}.txt`, output);
                 resolve();
             } else {
                 reject(new Error(`Jelly process exited with code ${code}`));
@@ -119,7 +129,7 @@ function runAnalysis(analysis) {
             ls(analysis.package, analysis.version, function(tree) {
                 try {
                     console.log(`Tree retrieved for ${analysis.package}@${analysis.version}`)
-                    fs.writeFileSync(`output/${analysis.analysis_id}-deptree.json`, JSON.stringify(tree));
+                    fs.writeFileSync(`${outputString}/${analysis.analysis_id}-deptree.json`, JSON.stringify(tree));
                     const targetKey = `${analysis.dependency}@${analysis.dep_version}`;
                     const paths = findPaths(tree, targetKey).filter(path => path.length == analysis.level + 1);
                     const include_packages = [...new Set(paths.flat().map(e => e.substr(e, e.lastIndexOf('@'))))];
@@ -167,15 +177,50 @@ function createSchedule(levels, vulnerabilities) {
 
 (async () => {
 
-    planned_analyses = await createSchedule([1, 2, 3], ["SNYK-JS-LODASH-73638", "SNYK-JS-MINIMIST-559764", "SNYK-JS-KINDOF-537849", "SNYK-JS-MINIMATCH-10105", "SNYK-JS-QS-10407", "SNYK-JS-HOEK-12061", "SNYK-JS-DEBUG-10762", "SNYK-JS-YARGSPARSER-560381"]);
-    fs.writeFileSync(`output/$dict.json`,  JSON.stringify(planned_analyses.map(a => _.omit(a, 'run')), null, 2));
-    
-    for(analysis of planned_analyses) {
+    // CLI args
+    const argv = yargs
+        .option('start', {
+            alias: "s",
+            type: 'number',
+            description: 'The analysis ID to start with',
+            default: 1
+        })
+        .option('end', {
+            alias: "e",
+            type: 'number',
+            description: 'The analysis ID to end with',
+            default: false
+        })
+        .option('levels', {
+            alias: "l",
+            type: 'number',
+            description: 'Number of levels to analyze',
+            default: 1
+        })
+        .option('vulns', {
+            alias: "v",
+            type: 'array',
+            description: 'List of vulnerabilities to analyze',
+            demandOption: true
+        })
+        .help()
+        .argv;
+
+    console.log(`Analyzing vulnerabilities: ${argv.vulns}`)
+
+    // Create output folder
+    fs.mkdirSync(`./${outputString}`, { recursive: true })
+
+    planned_analyses = await createSchedule(Array.from({ length: argv.levels }, (_, i) => i + 1), argv.vulns);
+    fs.writeFileSync(`${outputString}/$dict.json`,  JSON.stringify(planned_analyses.map(a => _.omit(a, 'run')), null, 2));
+    console.log(`Starting ${argv.levels}-level analysis from ${argv.start} to ${(argv.end || planned_analyses.length)}`)
+
+    for(analysis of planned_analyses.slice(argv.start - 1, (argv.end || planned_analyses.length))) {
     
         try {
             await runAnalysis(analysis)
         } catch (e) {
-            fs.writeFileSync(`output/${analysis.analysis_id}`, `${e.name}: ${e.message}`);
+            fs.writeFileSync(`${outputString}/${analysis.analysis_id}`, `${e.name}: ${e.message}`);
         }
         
     }
