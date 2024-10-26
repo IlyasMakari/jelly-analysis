@@ -9,61 +9,59 @@ const yargs = require('yargs');
 const os = require('os');
 const { Worker, isMainThread, parentPort, workerData } = require('worker_threads');
 
-function runJelly(analysis_id, vuln_id, package, include_packages, outputFolder) {
+const JELLY_TIMEOUT_SECONDS = 5 * 60; // 5 minutes
+const INSTALL_TIMEOUT_SECONDS = 5 * 60; // 5 minutes
+
+function executeCommand(command, args, options = {}) {
     return new Promise((resolve, reject) => {
-        // Define the maximum time (in milliseconds) for the Jelly process to run
-        let jelly_timeout_seconds = 5 * 60; // Example: 5 minutes
+        const process = spawn(command, args, options);
 
-        // Use spawn instead of execSync for more control over the process
-        const jellyProcess = spawn('sh', ['-c', `
-            export NODE_OPTIONS="--max-old-space-size=65536"
-            npm run start --max-old-space-size=65536 -- \
-            --approx \
-            -j ../${outputFolder}/${analysis_id}.json \
-            -m ../${outputFolder}/${analysis_id}.html \
-            -b ../code/${analysis_id} \
-            -v ../vulnerability_definitions/${vuln_id}.json \
-            --api-exported \
-            ../code/${analysis_id}/node_modules/${package} \
-            --timeout 300 \
-            --external-matches --proto \
-            ${(include_packages.length > 0) ? "--include-packages " + include_packages.join(" ") : ""}
-        `], { cwd: "jelly-0.10.0", maxBuffer: (10 * 1024 * 1024) });
-
-        // Set the timeout to kill the Jelly process if it runs too long
-        const timeout = setTimeout(() => {
-            try {
-                process.kill(jellyProcess.pid, 'SIGKILL');
-                reject(new Error("JELLY TIMEOUT"));
-            } catch (e) {
-                // console.log('Jelly process terminated before the timeout cutoff');
-            }
-        }, jelly_timeout_seconds * 1000);
-
-        // Capture stdout and stderr for logging purposes
         let output = '';
-        jellyProcess.stdout.on('data', (data) => {
-            output += data.toString();
-        });
+        process.stdout.on('data', (data) => (output += data.toString()));
+        process.stderr.on('data', (data) => (output += data.toString()));
 
-        jellyProcess.stderr.on('data', (data) => {
-            output += data.toString();
-        });
+        const timeout = setTimeout(() => {
+            process.kill('SIGKILL');
+            reject(new Error(`${command} ${args} TIMEOUT`));
+        }, options.timeout || 0);
 
-        // Handle process exit
-        jellyProcess.on('exit', (code) => {
-            clearTimeout(timeout); // Clear the timeout if the process exits on its own
-            if (code === 0) {
-                // Write output to file
-                fs.writeFileSync(`${outputFolder}/${analysis_id}.txt`, output);
-                resolve();
-            } else {
-                reject(new Error(`Jelly process exited with code ${code}`));
-            }
+        process.on('exit', (code) => {
+            clearTimeout(timeout);
+            if (code === 0) resolve(output);
+            else reject(new Error(`${command} ${args} exited with code ${code} \n \n ${output}`));
         });
     });
 }
 
+async function runJelly(analysisId, vulnId, packageName, includePackages, outputFolder) {
+    // console.log(`(${analysisId}) Running Jelly on the packages: ${includePackages.join(" ")}`)
+    const jellyArgs = [
+        '-c',
+        `export NODE_OPTIONS="--max-old-space-size=65536" && npm run start --max-old-space-size=65536 -- \
+            --approx -j ../${outputFolder}/${analysisId}.json \
+            -m ../${outputFolder}/${analysisId}.html \
+            -b ../code/${analysisId} -v ../vulnerability_definitions/${vulnId}.json \
+            --api-exported ../code/${analysisId}/node_modules/${packageName} \
+            --timeout 300 --external-matches --proto ${includePackages.length > 0 ? "--include-packages " + includePackages.join(" ") : ""}`,
+    ];
+    return await executeCommand('sh', jellyArgs, { cwd: "jelly-0.10.0", timeout: JELLY_TIMEOUT_SECONDS * 1000 });
+}
+
+async function installPackage(packageName, version, analysisId) {
+    // console.log(`(${analysisId}) Installing ${packageName}@${version}`);
+    return await executeCommand('npm', ['i', `${packageName}@${version}`], {
+        cwd: `code/${analysisId}`,
+        timeout: INSTALL_TIMEOUT_SECONDS * 1000,
+    });
+}
+
+function getDependencyTree(packageName, version) {
+    return new Promise((resolve, reject) => {
+        ls(packageName, version, (tree) => {
+            resolve(tree);
+        });
+    });
+}
 
 function findPaths(tree, targetKey, currentPath = []) {
     let paths = [];
@@ -78,70 +76,46 @@ function findPaths(tree, targetKey, currentPath = []) {
     return paths;
 }
 
-function runAnalysis(analysis) {
-
-    // Create new NPM package to run the tests on
-    fs.rmSync(`code/${analysis.analysis_id}`, { recursive: true, force: true });
-    fs.mkdirSync(`code/${analysis.analysis_id}`, { recursive: true });
-    const packageJsonString = `{"name": "code", "version": "1.0.0", "description": "", "main": "index.js", "scripts": {"test": "echo \\"Error: no test specified\\" && exit 1"}, "author": "", "license": "ISC"}`;
-    fs.writeFileSync(`code/${analysis.analysis_id}/package.json`, packageJsonString);
+async function runAnalysis(analysis) {
 
     console.log(`(${analysis.analysis_id}) Starting the level ${analysis.level} analysis of ${analysis.vuln_id}: ${analysis.package} -> ${analysis.dependency}`);
-    
-    return new Promise(function(resolve, reject) {
 
-        let install_timeout_seconds = 5 * 60; // 5 min install timeout
-        // let install_timeout_seconds = 30;
+    let install_output = "";
+    let jelly_output = "";
 
-        // console.log(`(${analysis.analysis_id}) Installing ${analysis.package}@${analysis.version}`)
-        npm_i = spawn(`npm`, ["i", `${analysis.package}@${analysis.version}`], { cwd: `code/${analysis.analysis_id}`, timeout: install_timeout_seconds * 1000});
-    
-        var timeout = setTimeout(() => {
-          try {
-            process.kill(npm_i.pid, 'SIGKILL');
-            fs.rmSync(`code/${analysis.analysis_id}`, { recursive: true, force: true });
-            reject(new Error("NPM INSTALL TIMEOUT"));
-          } catch (e) {
-            // console.log('Install terminated before the timeout cutoff');
-          }
-        }, install_timeout_seconds*1000);
+    try {
+        // Create new NPM environment to run the tests on
+        fs.rmSync(`code/${analysis.analysis_id}`, { recursive: true, force: true });
+        fs.mkdirSync(`code/${analysis.analysis_id}`, { recursive: true });
+        const packageJsonString = `{"name": "code", "version": "1.0.0", "description": "", "main": "index.js", "scripts": {"test": "echo \\"Error: no test specified\\" && exit 1"}, "author": "", "license": "ISC"}`;
+        fs.writeFileSync(`code/${analysis.analysis_id}/package.json`, packageJsonString);
 
-        npm_i.on('exit', (code) => {
+        // Install the dependency to test
+        install_output = await installPackage(analysis.package, analysis.version, analysis.analysis_id);
 
-            if (code != 0) {
-                fs.rmSync(`code/${analysis.analysis_id}`, { recursive: true, force: true });
-                reject(new Error("NPM INSTALL ERROR"));
-            } 
+        // Get the dependency tree and save as json
+        const tree = await getDependencyTree(analysis.package, analysis.version);
+        fs.writeFileSync(`${analysis.outputFolder}/${analysis.analysis_id}-deptree.json`, JSON.stringify(tree));
 
-            // console.log(`(${analysis.analysis_id}) "npm i ${analysis.package}@${analysis.version}" command has finished: Process exited with code ${code}`);
+        // Find the packages between the dependency and the vulnerability
+        const targetKey = `${analysis.dependency}@${analysis.dep_version}`;
+        const paths = findPaths(tree, targetKey).filter(path => path.length == analysis.level + 1);
+        const include_packages = [...new Set(paths.flat().map(e => e.substr(e, e.lastIndexOf('@'))))];
 
-            // console.log(`(${analysis.analysis_id}) Retrieving the npm tree for ${analysis.package}@${analysis.version}`);
-            ls(analysis.package, analysis.version, function(tree) {
-                try {
-                    // console.log(`(${analysis.analysis_id}) Tree retrieved for ${analysis.package}@${analysis.version}`)
-                    fs.writeFileSync(`${analysis.outputFolder}/${analysis.analysis_id}-deptree.json`, JSON.stringify(tree));
-                    const targetKey = `${analysis.dependency}@${analysis.dep_version}`;
-                    const paths = findPaths(tree, targetKey).filter(path => path.length == analysis.level + 1);
-                    const include_packages = [...new Set(paths.flat().map(e => e.substr(e, e.lastIndexOf('@'))))];
-                    // console.log(`(${analysis.analysis_id}) Running Jelly on the packages: ${include_packages.join(" ")}`)
-                    runJelly(analysis.analysis_id, analysis.vuln_id, analysis.package, include_packages, analysis.outputFolder).then(function() {
-                        // console.log("success!");
-                        fs.rmSync(`code/${analysis.analysis_id}`, { recursive: true, force: true });
-                        resolve();
-                    }, function(err) {
-                        // console.log("error");
-                        // console.log(err);
-                        fs.rmSync(`code/${analysis.analysis_id}`, { recursive: true, force: true });
-                        reject(err);
-                    });
-                } catch (error) {
-                    reject(error);
-                }
-            });
-        });
+        // Run Jelly
+        jelly_output = await runJelly(analysis.analysis_id, analysis.vuln_id, analysis.package, include_packages, analysis.outputFolder);
+        fs.writeFileSync(`${analysis.outputFolder}/${analysis.analysis_id}.txt`, install_output + "\n" + jelly_output);
 
-        
-    });
+    }
+    catch(error) {
+        // Save error to file
+        fs.writeFileSync(`${analysis.outputFolder}/${analysis.analysis_id}`, `${error.name}: ${error.message}`);
+    }
+    finally {
+        // Delete the NPM environment when finished
+        fs.rmSync(`code/${analysis.analysis_id}`, { recursive: true, force: true });
+    }   
+
 }
 
 function createSchedule(levels, vulnerabilities) {
@@ -167,84 +141,69 @@ function createSchedule(levels, vulnerabilities) {
 }
 
 
-if (isMainThread) {
+async function main() {
 
-    (async () => {
+    // CLI args
+    const argv = yargs
+        .option('start', { alias: "s", type: 'number', description: 'The analysis ID to start with', default: 1 })
+        .option('end', { alias: "e", type: 'number', description: 'The analysis ID to end with', default: false })
+        .option('levels', { alias: "l", type: 'number', description: 'Number of levels to analyze', default: 1 })
+        .option('vulns', { alias: "v", type: 'array', description: 'List of vulnerabilities to analyze', demandOption: true })
+        .option('threads', { alias: "t", type: 'number', description: 'Number of concurrent threads', default: os.cpus().length })
+        .help()
+        .argv;
 
-        // CLI args
-        const argv = yargs
-            .option('start', { alias: "s", type: 'number', description: 'The analysis ID to start with', default: 1 })
-            .option('end', { alias: "e", type: 'number', description: 'The analysis ID to end with', default: false })
-            .option('levels', { alias: "l", type: 'number', description: 'Number of levels to analyze', default: 1 })
-            .option('vulns', { alias: "v", type: 'array', description: 'List of vulnerabilities to analyze', demandOption: true })
-            .option('threads', { alias: "t", type: 'number', description: 'Number of concurrent threads', default: os.cpus().length })
-            .help()
-            .argv;
+    // Delete code from previous run
+    execSync(`find . -maxdepth 1 -type d ! -name "." -exec rm -rf {} + || true`, { cwd: "code"}).toString();
+    
+    // Create output folder
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, '0'); // Months are zero-based
+    const day = String(now.getDate()).padStart(2, '0');
+    const hours = String(now.getHours()).padStart(2, '0');
+    const minutes = String(now.getMinutes()).padStart(2, '0');
+    const outputFolder = `output/output-${year}-${month}-${day}-${hours}${minutes}`;
+    fs.mkdirSync(`./${outputFolder}`, { recursive: true })
 
-        // Delete code from previous run
-        execSync(`find . -maxdepth 1 -type d ! -name "." -exec rm -rf {} + || true`, { cwd: "code"}).toString();
-        
-        // Create output folder
-        const now = new Date();
-        const year = now.getFullYear();
-        const month = String(now.getMonth() + 1).padStart(2, '0'); // Months are zero-based
-        const day = String(now.getDate()).padStart(2, '0');
-        const hours = String(now.getHours()).padStart(2, '0');
-        const minutes = String(now.getMinutes()).padStart(2, '0');
-        const outputFolder = `output/output-${year}-${month}-${day}-${hours}${minutes}`;
-        fs.mkdirSync(`./${outputFolder}`, { recursive: true })
+    // Create schedule
+    planned_analyses = createSchedule(Array.from({ length: argv.levels }, (_, i) => i + 1), argv.vulns);
+    fs.writeFileSync(`${outputFolder}/$dict.json`,  JSON.stringify(planned_analyses.map(a => _.omit(a, 'run')), null, 2));
 
-        // Create schedule
-        planned_analyses = createSchedule(Array.from({ length: argv.levels }, (_, i) => i + 1), argv.vulns);
-        fs.writeFileSync(`${outputFolder}/$dict.json`,  JSON.stringify(planned_analyses.map(a => _.omit(a, 'run')), null, 2));
+    // Logging
+    console.log(`Starting ${argv.levels}-level analysis from ${argv.start} to ${(argv.end || planned_analyses.length)}`)
+    console.log(`Concurrent threads: ${argv.threads}`);
+    console.log(`Analyzing vulnerabilities: ${argv.vulns}`);
 
-        // Logging
-        console.log(`Starting ${argv.levels}-level analysis from ${argv.start} to ${(argv.end || planned_analyses.length)}`)
-        console.log(`Concurrent threads: ${argv.threads}`);
-        console.log(`Analyzing vulnerabilities: ${argv.vulns}`);
+    // Select tasks from schedule (based on CLI args)
+    const tasks = planned_analyses.slice(argv.start - 1, (argv.end || planned_analyses.length));
+    let runningThreads = 0;
 
-        // Select tasks from schedule
-        const tasks = planned_analyses.slice(argv.start - 1, (argv.end || planned_analyses.length));
-        let runningThreads = 0;
+    // Function to start a worker
+    function startWorker(task) {
+        runningThreads++;
+        task.outputFolder = outputFolder;
+        const worker = new Worker(__filename, { workerData: task });
 
-        // Function to start a worker
-        function startWorker(task) {
-            runningThreads++;
-            task.outputFolder = outputFolder;
-            const worker = new Worker(__filename, { workerData: task });
-
-            worker.on('message', (msg) => {
-                console.log(`Analysis ${msg.analysis_id} finished`);
-                worker.terminate();
-                runningThreads--;
-                if (tasks.length > 0) startWorker(tasks.shift());
-            });
-
-        }
-
-        // Start initial workers up to the number of threads
-        while (runningThreads < argv.threads && tasks.length > 0) {
-            startWorker(tasks.shift());
-        }
-
-
-
-    })();
-
-} else {
-    // Worker code for each analysis
-
-    const task = workerData;
-
-    async function workerCode() {
-        await runAnalysis(task).catch(function (e) {
-            fs.writeFileSync(`${__dirname}/${task.outputFolder}/${task.analysis_id}`, `${e.name}: ${e.message}`);
+        worker.on('message', (msg) => {
+            console.log(`Analysis ${msg.analysis_id} finished`);
+            worker.terminate();
+            runningThreads--;
+            if (tasks.length > 0) startWorker(tasks.shift());
         });
-        parentPort.postMessage(task);
+
     }
 
-    workerCode();
+    // Start initial workers up to the number of threads
+    while (runningThreads < argv.threads && tasks.length > 0) {
+        startWorker(tasks.shift());
+    }
 
 }
 
+
+
+// Multithreading
+if (isMainThread) main();
+else runAnalysis(workerData).then(() => parentPort.postMessage(workerData)).catch((err) => console.log(err));
 
