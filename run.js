@@ -29,7 +29,7 @@ function executeCommand(command, args, options = {}) {
         }
 
         process.on('exit', (code) => {
-            clearTimeout(timeout);
+            if (timeout) clearTimeout(timeout);
             if (code === 0) resolve(output);
             else reject(new Error(`${command} ${args} exited with code ${code} \n \n ${output}`));
         });
