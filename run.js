@@ -20,10 +20,13 @@ function executeCommand(command, args, options = {}) {
         process.stdout.on('data', (data) => (output += data.toString()));
         process.stderr.on('data', (data) => (output += data.toString()));
 
-        const timeout = setTimeout(() => {
-            process.kill('SIGKILL');
-            reject(new Error(`${command} ${args} TIMEOUT`));
-        }, options.timeout || 0);
+        let timeout = null;
+        if (options.timeout) {
+            timeout = setTimeout(() => {
+                process.kill('SIGKILL');
+                reject(new Error(`${command} ${args} TIMEOUT`));
+            }, options.timeout);
+        }
 
         process.on('exit', (code) => {
             clearTimeout(timeout);
