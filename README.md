@@ -1,3 +1,19 @@
+## Install and build
+
+Install the npm dependencies
+
+```bash
+npm install
+```
+
+Build Jelly:
+
+```bash
+cd jelly-...
+npm install
+npm run build
+```
+
 ## Running the Analysis
 
 This `run.js` script is designed to analyze specified JavaScript vulnerabilities across multiple levels of dependencies. To run the script, you can use the following command in your terminal:
