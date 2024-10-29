@@ -34,6 +34,9 @@ node run.js --levels <number_of_levels> -s <start_analysis_id> -e <end_analysis_
 - `--vulns` or `-v`:  
   A list of vulnerabilities to analyze (use Snyk IDs)
 
+ - `--threads` or `-t`:  
+  Number of concurrent threads to run (default = number of CPU cores)
+
 
 For example:
 
