@@ -1,0 +1,4 @@
+. {
+	forward . tls://1.1.1.1
+	cache
+}
