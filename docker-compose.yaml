@@ -1,0 +1,15 @@
+services: 
+  dns: 
+    image: coredns/coredns
+    volumes:
+      - ./config:/config
+    command: -conf /config/Corefile
+  nodejs:
+    build: .
+    volumes:
+      - ./:/code
+    links:
+      - "dns"
+
+
+
