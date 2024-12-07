@@ -12,6 +12,7 @@
     "lodash": "^4.17.21",
     "log-timestamp": "^0.3.0",
     "npm-remote-ls": "^1.3.2",
+    "semver": "^7.6.3",
     "yargs": "^17.7.2"
   }
 }

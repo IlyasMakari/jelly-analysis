@@ -8,6 +8,7 @@ const _ = require("lodash");
 const yargs = require('yargs');
 const os = require('os');
 const { Worker, isMainThread, parentPort, workerData } = require('worker_threads');
+const semver = require('semver');
 
 const JELLY_TIMEOUT_SECONDS = 5 * 60; // 5 minutes
 const INSTALL_TIMEOUT_SECONDS = 5 * 60; // 5 minutes
@@ -69,7 +70,9 @@ function getDependencyTree(packageName, version) {
 function findPaths(tree, targetKey, currentPath = []) {
     let paths = [];
     for (let key in tree) {
-        if (key === targetKey) {
+        let keyVersion = key.split('@')[1];
+        if ((targetKey.version_range && key.startsWith(targetKey.package + "@") && semver.satisfies(keyVersion, targetKey.version_range))
+            || (!targetKey.version_range && key.startsWith(targetKey.package + "@"))) {
             paths.push([...currentPath, key]);
         } else if (typeof tree[key] === 'object' && Object.keys(tree[key]).length > 0) {
             let subPaths = findPaths(tree[key], targetKey, [...currentPath, key]);
@@ -77,6 +80,60 @@ function findPaths(tree, targetKey, currentPath = []) {
         }
     }
     return paths;
+}
+
+function rangeEventsToSemverRange(events) {
+    let ranges = [];
+
+    for (const event of events) {
+        if (event.introduced && event.introduced !== "0") {
+            ranges.push(`>=${event.introduced}`);
+        }
+        if (event.fixed) {
+            ranges.push(`<${event.fixed}`);
+        }
+    }
+
+    return ranges.join(" "); // Combine ranges into a valid semver range string
+}
+
+function getVulnerableRange(osvData) {
+
+    if (!osvData.affected || !Array.isArray(osvData.affected)) {
+        throw new Error('Invalid OSV JSON format: Missing "affected" field.');
+    }
+
+    let vulnerableRanges = [];
+
+    for (const affected of osvData.affected) {
+        if (affected.ranges) {
+            for (const range of affected.ranges) {
+                if (range.type === "SEMVER") {
+                    // Convert range events to semver-compatible range
+                    const semverRange = rangeEventsToSemverRange(range.events);
+                    if (semverRange) {
+                        vulnerableRanges.push(semverRange);
+                    }
+                } else if (range.type === "ECOSYSTEM") {
+                    const ecosystemRange = rangeEventsToSemverRange(range.events);
+                    if (ecosystemRange) {
+                        vulnerableRanges.push(ecosystemRange);
+                    }
+                } else if (range.type === "GIT") {
+                    console.warn("Skipping GIT range; not supported for semver ranges.");
+                } else {
+                    console.warn(`Unsupported range type: ${range.type}`);
+                }
+            }
+        }
+    }
+
+    // Combine all semver ranges into one
+    if (vulnerableRanges.length > 0) {
+        return vulnerableRanges.join(" || "); // Use OR (||) to combine ranges
+    }
+
+    return null; // No vulnerable range found
 }
 
 async function runAnalysis(analysis) {
@@ -109,10 +166,41 @@ async function runAnalysis(analysis) {
         const tree = await getDependencyTree(analysis.package, analysis.version);
         fs.writeFileSync(`${analysis.outputFolder}/${analysis.analysis_id}-deptree.json`, JSON.stringify(tree));
 
+        // Get the vulnerable range from the OSV data
+        const osvData = JSON.parse(fs.readFileSync(`vulnerability_definitions/${analysis.vuln_id}.json`, "utf-8"))[0]['osv'];
+        const range = getVulnerableRange(osvData);
+
         // Find the packages between the dependency and the vulnerability
-        const targetKey = `${analysis.dependency}@${analysis.dep_version}`;
-        const paths = findPaths(tree, targetKey).filter(path => path.length == analysis.level + 1);
-        const include_packages = [...new Set(paths.flat().map(e => e.substr(e, e.lastIndexOf('@'))))];
+        const targetKeyRange = { "package": analysis.dependency, "version_range": range };
+        const targetKeySpecific = { "package": analysis.dependency, "version_range": analysis.dep_version };
+        const targetKeyName = { "package": analysis.dependency };
+        let rangePaths = findPaths(tree, targetKeyRange);
+        let rangePathsFiltered = rangePaths.filter(path => path.length == analysis.level + 1);
+        let specificPaths = findPaths(tree, targetKeySpecific);
+        let specificPathsFiltered = specificPaths.filter(path => path.length == analysis.level + 1);
+        let namePaths = findPaths(tree, targetKeyName);
+        let namePathsFiltered = namePaths.filter(path => path.length == analysis.level + 1);
+
+        console.log(`(${analysis.analysis_id}) Vulnerable range: ${range} | Vulnerable range paths: ${rangePaths.length} (${rangePathsFiltered.length} filtered) | Specific paths: ${specificPaths.length} (${specificPathsFiltered.length} filtered) | Name paths: ${namePaths.length} (${namePathsFiltered.length} filtered)`);
+
+        // Only analyze the dependencies that are in the vulnerable range
+        const include_packages = [...new Set(rangePathsFiltered.flat().map(e => e.substr(e, e.lastIndexOf('@'))))];
+
+        // Make a file to store the 3 types of paths
+        fs.writeFileSync(`${analysis.outputFolder}/${analysis.analysis_id}-paths.json`, JSON.stringify({
+            rangePaths: rangePaths,
+            specificPaths: specificPaths,
+            namePaths: namePaths,
+            rangePathsFiltered: rangePathsFiltered,
+            specificPathsFiltered: specificPathsFiltered,
+            namePathsFiltered: namePathsFiltered,
+        }));
+
+        // If rangePathsFiltered is empty, throw an error
+        if (rangePathsFiltered.length === 0) {
+            console.error(`(${analysis.analysis_id}) No paths found for the vulnerable range ${range}`);
+            throw new Error(`No paths found for the vulnerable range ${range}`);
+        }
 
         // Run Jelly
         jelly_output = await runJelly(analysis.analysis_id, analysis.vuln_id, analysis.package, include_packages, analysis.outputFolder);
@@ -187,14 +275,20 @@ async function main() {
 
     // CLI args
     const argv = yargs
-        .option("levels", { alias: "l", type: "number", description: "Number of levels to analyze", default: 1 })
+        .option("levels", {
+            alias: "l",
+            type: "array",
+            description: "List of levels to analyze (e.g., --levels 1 2 3)",
+            coerce: (levels) => levels.map(Number),
+            demandOption: true,
+        })
         .option("vulns", { alias: "v", type: "array", description: "List of vulnerabilities", demandOption: true })
         .option("threads", { alias: "t", type: "number", description: "Number of concurrent threads", default: os.cpus().length })
         .help()
         .argv;
 
     // Logging
-    console.log(`Starting ${argv.levels}-level analysis`)
+    console.log(`Starting analysis of levels: ${argv.levels}`);
     console.log(`Concurrent threads: ${argv.threads}`);
     console.log(`Analyzing vulnerabilities: ${argv.vulns}`);
 
@@ -219,7 +313,7 @@ async function main() {
     fs.writeFileSync(`${outputFolder}/$dict.json`, JSON.stringify(analysisDict, null, 2));
 
     // Create schedule
-    const { tasks, remainingItems } = createSchedule(Array.from({ length: argv.levels }, (_, i) => i + 1), argv.vulns, sampleSizes);
+    const { tasks, remainingItems } = createSchedule(argv.levels, argv.vulns, sampleSizes);
 
     // Initialize progress tracking
     let currentAnalysisId = 1; // Tracks the next analysis ID to assign
