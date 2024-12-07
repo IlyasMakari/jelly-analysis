@@ -41,7 +41,7 @@ async function runJelly(analysisId, vulnId, packageName, includePackages, output
     const jellyArgs = [
         '-c',
         `export NODE_OPTIONS="--max-old-space-size=65536" && npm run start --max-old-space-size=65536 -- \
-            --approx --max-indirections 2 -j ../${outputFolder}/${analysisId}.json \
+            -j ../${outputFolder}/${analysisId}.json \
             -m ../${outputFolder}/${analysisId}.html \
             -b ../code/${analysisId} -v ../vulnerability_definitions/${vulnId}.json \
             --api-exported ../code/${analysisId}/node_modules/${packageName} \
@@ -86,6 +86,12 @@ async function runAnalysis(analysis) {
     let install_output = "";
     let jelly_output = "";
 
+    // Track start time in ms
+    const startTime = Date.now();
+
+    // Track the project size in kilobytes
+    analysis.project_size = -1;
+
     try {
         // Create new NPM environment to run the tests on
         fs.rmSync(`code/${analysis.analysis_id}`, { recursive: true, force: true });
@@ -95,6 +101,9 @@ async function runAnalysis(analysis) {
 
         // Install the dependency to test
         install_output = await installPackage(analysis.package, analysis.version, analysis.analysis_id);
+
+        // Find the directory size of /code/${analysisId} in kilobytes
+        analysis.project_size = parseInt(execSync(`du -sk code/${analysis.analysis_id} | cut -f1`, { encoding: 'utf8' }).trim());
 
         // Get the dependency tree and save as json
         const tree = await getDependencyTree(analysis.package, analysis.version);
@@ -109,6 +118,10 @@ async function runAnalysis(analysis) {
         jelly_output = await runJelly(analysis.analysis_id, analysis.vuln_id, analysis.package, include_packages, analysis.outputFolder);
         fs.writeFileSync(`${analysis.outputFolder}/${analysis.analysis_id}.txt`, install_output + "\n" + jelly_output);
 
+        // Track end time in ms
+        const endTime = Date.now();
+        analysis.execitionTime = endTime - startTime;
+
         // Return the analysis with success
         return { task: analysis, success: true };
 
@@ -116,6 +129,11 @@ async function runAnalysis(analysis) {
     catch(error) {
         // Save error to file
         fs.writeFileSync(`${analysis.outputFolder}/${analysis.analysis_id}`, `${error.name}: ${error.message}`);
+
+        // Track end time in ms
+        const endTime = Date.now();
+        analysis.execitionTime = endTime - startTime;
+
         return { task: analysis, success: false, error: error };
     }
     finally {
