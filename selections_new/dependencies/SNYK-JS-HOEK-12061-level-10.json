@@ -1,0 +1,28 @@
+[
+  {
+    "package":"@risd\/webhook-generate-upload",
+    "version":"2.0.0",
+    "dependency":"hoek",
+    "dep_version":"2.16.3",
+    "order":9,
+    "id":"SNYK-JS-HOEK-12061",
+    "vuln_name":"Prototype Pollution",
+    "severity":"medium",
+    "cve":"CVE-2018-3728",
+    "dep_transitive_count":604608,
+    "package_transitive_count":0
+  },
+  {
+    "package":"create-reaction-app",
+    "version":"0.0.4",
+    "dependency":"hoek",
+    "dep_version":"2.16.3",
+    "order":9,
+    "id":"SNYK-JS-HOEK-12061",
+    "vuln_name":"Prototype Pollution",
+    "severity":"medium",
+    "cve":"CVE-2018-3728",
+    "dep_transitive_count":604608,
+    "package_transitive_count":1
+  }
+]

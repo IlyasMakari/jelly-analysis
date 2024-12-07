@@ -1,0 +1,15 @@
+[
+  {
+    "package":"mt-front-util",
+    "version":"0.6.2",
+    "dependency":"qs",
+    "dep_version":"0.6.6",
+    "order":7,
+    "id":"SNYK-JS-QS-10407",
+    "vuln_name":"Prototype Override Protection Bypass",
+    "severity":"high",
+    "cve":"CVE-2017-1000048",
+    "dep_transitive_count":605720,
+    "package_transitive_count":2
+  }
+]

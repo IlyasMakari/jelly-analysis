@@ -41,13 +41,13 @@ async function runJelly(analysisId, vulnId, packageName, includePackages, output
     const jellyArgs = [
         '-c',
         `export NODE_OPTIONS="--max-old-space-size=65536" && npm run start --max-old-space-size=65536 -- \
-            --approx -j ../${outputFolder}/${analysisId}.json \
+            --approx --max-indirections 2 -j ../${outputFolder}/${analysisId}.json \
             -m ../${outputFolder}/${analysisId}.html \
             -b ../code/${analysisId} -v ../vulnerability_definitions/${vulnId}.json \
             --api-exported ../code/${analysisId}/node_modules/${packageName} \
             --timeout 300 --external-matches --proto ${includePackages.length > 0 ? "--include-packages " + includePackages.join(" ") : ""}`,
     ];
-    return await executeCommand('sh', jellyArgs, { cwd: "jelly-0.10.0", timeout: JELLY_TIMEOUT_SECONDS * 1000 });
+    return await executeCommand('sh', jellyArgs, { cwd: "jelly-master", timeout: JELLY_TIMEOUT_SECONDS * 1000 });
 }
 
 async function installPackage(packageName, version, analysisId) {
@@ -109,10 +109,14 @@ async function runAnalysis(analysis) {
         jelly_output = await runJelly(analysis.analysis_id, analysis.vuln_id, analysis.package, include_packages, analysis.outputFolder);
         fs.writeFileSync(`${analysis.outputFolder}/${analysis.analysis_id}.txt`, install_output + "\n" + jelly_output);
 
+        // Return the analysis with success
+        return { task: analysis, success: true };
+
     }
     catch(error) {
         // Save error to file
         fs.writeFileSync(`${analysis.outputFolder}/${analysis.analysis_id}`, `${error.name}: ${error.message}`);
+        return { task: analysis, success: false, error: error };
     }
     finally {
         // Delete the NPM environment when finished
@@ -121,26 +125,43 @@ async function runAnalysis(analysis) {
 
 }
 
-function createSchedule(levels, vulnerabilities) {
+function createSchedule(levels, vulnerabilities, sampleSizes) {
     let tasks = []
+    let remainingItems = {};
     let analysis_id = 1;
     levels.forEach(i => {
         vulnerabilities.forEach(vuln => {
-            JSON.parse(fs.readFileSync(`selections/${vuln}-level-${i}.json`, 'utf8')).forEach(selection => {
+
+            // Read the full dataset for this vulnerability and level combination
+            const dataset = JSON.parse(fs.readFileSync(`selections_new/dependencies/${vuln}-level-${i}.json`, "utf8"));
+
+            // Get the sample size for this combination
+            const sampleKey = `('${vuln}', ${i})`;
+            const sampleSize = sampleSizes[sampleKey]?.sample_size || 100; // Default to 100 if not specified
+
+            // Select the sample and the remaining items
+            const sample = dataset.slice(0, sampleSize);
+            const remaining = dataset.slice(sampleSize); // Spare items
+
+            // Add tasks for the sample (no analysis_id yet)
+            sample.forEach((selection) => {
                 tasks.push({
-                    "analysis_id": analysis_id,
-                    "vuln_id": selection.id,
-                    "dependency": selection.dependency,
-                    "package": selection.package,
-                    "version": selection.version,
-                    "dep_version": selection.dep_version,
-                    "level": i
+                    vuln_id: selection.id,
+                    dependency: selection.dependency,
+                    package: selection.package,
+                    version: selection.version,
+                    dep_version: selection.dep_version,
+                    level: i,
+                    sampleKey: sampleKey,
                 });
-                analysis_id++;
             });
+
+            // Store the remaining items for this sampleKey
+            remainingItems[sampleKey] = remaining;
         });
     });
-    return tasks
+
+    return { tasks, remainingItems };
 }
 
 
@@ -148,13 +169,16 @@ async function main() {
 
     // CLI args
     const argv = yargs
-        .option('start', { alias: "s", type: 'number', description: 'The analysis ID to start with', default: 1 })
-        .option('end', { alias: "e", type: 'number', description: 'The analysis ID to end with', default: false })
-        .option('levels', { alias: "l", type: 'number', description: 'Number of levels to analyze', default: 1 })
-        .option('vulns', { alias: "v", type: 'array', description: 'List of vulnerabilities to analyze', demandOption: true })
-        .option('threads', { alias: "t", type: 'number', description: 'Number of concurrent threads', default: os.cpus().length })
+        .option("levels", { alias: "l", type: "number", description: "Number of levels to analyze", default: 1 })
+        .option("vulns", { alias: "v", type: "array", description: "List of vulnerabilities", demandOption: true })
+        .option("threads", { alias: "t", type: "number", description: "Number of concurrent threads", default: os.cpus().length })
         .help()
         .argv;
+
+    // Logging
+    console.log(`Starting ${argv.levels}-level analysis`)
+    console.log(`Concurrent threads: ${argv.threads}`);
+    console.log(`Analyzing vulnerabilities: ${argv.vulns}`);
 
     // Delete code from previous run
     execSync(`find . -maxdepth 1 -type d ! -name "." -exec rm -rf {} + || true`, { cwd: "code"}).toString();
@@ -169,30 +193,60 @@ async function main() {
     const outputFolder = `output/output-${year}-${month}-${day}-${hours}${minutes}`;
     fs.mkdirSync(`./${outputFolder}`, { recursive: true })
 
+    // Load sample sizes
+    const sampleSizes = JSON.parse(fs.readFileSync('selections_new/sample_sizes.json', 'utf8'));
+
+    // Initialize analysis dict
+    let analysisDict = [];
+    fs.writeFileSync(`${outputFolder}/$dict.json`, JSON.stringify(analysisDict, null, 2));
+
     // Create schedule
-    planned_analyses = createSchedule(Array.from({ length: argv.levels }, (_, i) => i + 1), argv.vulns);
-    fs.writeFileSync(`${outputFolder}/$dict.json`,  JSON.stringify(planned_analyses.map(a => _.omit(a, 'run')), null, 2));
+    const { tasks, remainingItems } = createSchedule(Array.from({ length: argv.levels }, (_, i) => i + 1), argv.vulns, sampleSizes);
 
-    // Logging
-    console.log(`Starting ${argv.levels}-level analysis from ${argv.start} to ${(argv.end || planned_analyses.length)}`)
-    console.log(`Concurrent threads: ${argv.threads}`);
-    console.log(`Analyzing vulnerabilities: ${argv.vulns}`);
-
-    // Select tasks from schedule (based on CLI args)
-    const tasks = planned_analyses.slice(argv.start - 1, (argv.end || planned_analyses.length));
+    // Initialize progress tracking
+    let currentAnalysisId = 1; // Tracks the next analysis ID to assign
+    
+    // Start workers and manage tasks
     let runningThreads = 0;
 
     // Function to start a worker
     function startWorker(task) {
         runningThreads++;
+        task.analysis_id = currentAnalysisId++;
         task.outputFolder = outputFolder;
         const worker = new Worker(__filename, { workerData: task });
 
         worker.on('message', (msg) => {
-            console.log(`Analysis ${msg.analysis_id} finished`);
+            console.log(`Analysis ${msg.task.analysis_id} finished - ${msg.success ? "SUCCESS" : "FAILED"}`);
+
+            // Save the analysis to the dict
+            let analysis = _.omit(msg.task, 'sampleKey');
+            analysis.success = msg.success;
+            analysisDict.push(analysis);
+            fs.writeFileSync(`${outputFolder}/$dict.json`, JSON.stringify(analysisDict, null, 2));
+
             worker.terminate();
             runningThreads--;
-            if (tasks.length > 0) startWorker(tasks.shift());
+            
+            if (!msg.success && remainingItems[msg.task.sampleKey].length > 0) {
+                // If failed, try another analysis if there are remaining items for this sampleKey
+                let nextTask = remainingItems[msg.task.sampleKey].shift();
+
+                let nextAnalysis = {
+                    vuln_id: nextTask.id,
+                    dependency: nextTask.dependency,
+                    package: nextTask.package,
+                    version: nextTask.version,
+                    dep_version: nextTask.dep_version,
+                    level: nextTask.order + 1,
+                    sampleKey: msg.task.sampleKey,
+                };
+
+                startWorker(nextAnalysis);
+            } else if (tasks.length > 0) {
+                startWorker(tasks.shift());
+            }
+
         });
 
     }
@@ -208,5 +262,9 @@ async function main() {
 
 // Multithreading
 if (isMainThread) main();
-else runAnalysis(workerData).then(() => parentPort.postMessage(workerData)).catch((err) => console.log(err));
+else runAnalysis(workerData)
+    .then((output) => {
+        parentPort.postMessage({task: output.task, success: output.success});
+    })
+    .catch((err) => console.log(err));
 

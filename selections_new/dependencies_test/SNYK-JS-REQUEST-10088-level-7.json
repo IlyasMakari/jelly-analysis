@@ -1,0 +1,67 @@
+[
+  {
+    "package":"mt-front-util",
+    "version":"0.6.2",
+    "dependency":"request",
+    "dep_version":"2.27.0",
+    "order":6,
+    "id":"SNYK-JS-REQUEST-10088",
+    "vuln_name":"Remote Memory Exposure",
+    "severity":"medium",
+    "cve":"CVE-2017-16026",
+    "dep_transitive_count":604608,
+    "package_transitive_count":2
+  },
+  {
+    "package":"@dattomy\/nscale-kernel",
+    "version":"0.17.10-0",
+    "dependency":"request",
+    "dep_version":"2.11.4",
+    "order":6,
+    "id":"SNYK-JS-REQUEST-10088",
+    "vuln_name":"Remote Memory Exposure",
+    "severity":"medium",
+    "cve":"CVE-2017-16026",
+    "dep_transitive_count":604608,
+    "package_transitive_count":1
+  },
+  {
+    "package":"graft-broker",
+    "version":"0.0.1",
+    "dependency":"request",
+    "dep_version":"2.11.4",
+    "order":6,
+    "id":"SNYK-JS-REQUEST-10088",
+    "vuln_name":"Remote Memory Exposure",
+    "severity":"medium",
+    "cve":"CVE-2017-16026",
+    "dep_transitive_count":604608,
+    "package_transitive_count":3
+  },
+  {
+    "package":"nscale-kernel",
+    "version":"0.17.7",
+    "dependency":"request",
+    "dep_version":"2.11.4",
+    "order":6,
+    "id":"SNYK-JS-REQUEST-10088",
+    "vuln_name":"Remote Memory Exposure",
+    "severity":"medium",
+    "cve":"CVE-2017-16026",
+    "dep_transitive_count":604608,
+    "package_transitive_count":2
+  },
+  {
+    "package":"lothar",
+    "version":"1.0.11",
+    "dependency":"request",
+    "dep_version":"2.27.0",
+    "order":6,
+    "id":"SNYK-JS-REQUEST-10088",
+    "vuln_name":"Remote Memory Exposure",
+    "severity":"medium",
+    "cve":"CVE-2017-16026",
+    "dep_transitive_count":604608,
+    "package_transitive_count":0
+  }
+]

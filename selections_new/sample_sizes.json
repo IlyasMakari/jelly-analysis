@@ -1,0 +1,514 @@
+{
+  "('SNYK-JS-MINIMIST-559764', 0)":{
+    "count":12418,
+    "sample_size":68
+  },
+  "('SNYK-JS-YARGSPARSER-560381', 0)":{
+    "count":636,
+    "sample_size":62
+  },
+  "('SNYK-JS-LODASH-73638', 0)":{
+    "count":20487,
+    "sample_size":68
+  },
+  "('SNYK-JS-KINDOF-537849', 0)":{
+    "count":101,
+    "sample_size":41
+  },
+  "('SNYK-JS-MINIMATCH-10105', 0)":{
+    "count":735,
+    "sample_size":63
+  },
+  "('SNYK-JS-QS-10407', 0)":{
+    "count":812,
+    "sample_size":63
+  },
+  "('SNYK-JS-DEBUG-10762', 0)":{
+    "count":2434,
+    "sample_size":66
+  },
+  "('SNYK-JS-HOEK-12061', 0)":{
+    "count":493,
+    "sample_size":60
+  },
+  "('SNYK-JS-MINIMIST-559764', 1)":{
+    "count":51953,
+    "sample_size":68
+  },
+  "('SNYK-JS-YARGSPARSER-560381', 1)":{
+    "count":17922,
+    "sample_size":68
+  },
+  "('SNYK-JS-LODASH-73638', 1)":{
+    "count":24532,
+    "sample_size":68
+  },
+  "('SNYK-JS-KINDOF-537849', 1)":{
+    "count":1277,
+    "sample_size":65
+  },
+  "('SNYK-JS-MINIMATCH-10105', 1)":{
+    "count":6325,
+    "sample_size":67
+  },
+  "('SNYK-JS-QS-10407', 1)":{
+    "count":10724,
+    "sample_size":68
+  },
+  "('SNYK-JS-DEBUG-10762', 1)":{
+    "count":12072,
+    "sample_size":68
+  },
+  "('SNYK-JS-HOEK-12061', 1)":{
+    "count":1202,
+    "sample_size":65
+  },
+  "('SNYK-JS-MINIMIST-559764', 2)":{
+    "count":98936,
+    "sample_size":68
+  },
+  "('SNYK-JS-YARGSPARSER-560381', 2)":{
+    "count":24355,
+    "sample_size":68
+  },
+  "('SNYK-JS-LODASH-73638', 2)":{
+    "count":13138,
+    "sample_size":68
+  },
+  "('SNYK-JS-KINDOF-537849', 2)":{
+    "count":12294,
+    "sample_size":68
+  },
+  "('SNYK-JS-MINIMATCH-10105', 2)":{
+    "count":11290,
+    "sample_size":68
+  },
+  "('SNYK-JS-QS-10407', 2)":{
+    "count":10307,
+    "sample_size":68
+  },
+  "('SNYK-JS-DEBUG-10762', 2)":{
+    "count":7443,
+    "sample_size":68
+  },
+  "('SNYK-JS-HOEK-12061', 2)":{
+    "count":6561,
+    "sample_size":67
+  },
+  "('SNYK-JS-MINIMIST-559764', 3)":{
+    "count":83346,
+    "sample_size":68
+  },
+  "('SNYK-JS-YARGSPARSER-560381', 3)":{
+    "count":23738,
+    "sample_size":68
+  },
+  "('SNYK-JS-LODASH-73638', 3)":{
+    "count":5787,
+    "sample_size":67
+  },
+  "('SNYK-JS-KINDOF-537849', 3)":{
+    "count":13560,
+    "sample_size":68
+  },
+  "('SNYK-JS-MINIMATCH-10105', 3)":{
+    "count":12401,
+    "sample_size":68
+  },
+  "('SNYK-JS-QS-10407', 3)":{
+    "count":3934,
+    "sample_size":67
+  },
+  "('SNYK-JS-DEBUG-10762', 3)":{
+    "count":3367,
+    "sample_size":67
+  },
+  "('SNYK-JS-HOEK-12061', 3)":{
+    "count":10858,
+    "sample_size":68
+  },
+  "('SNYK-JS-MINIMIST-559764', 4)":{
+    "count":30764,
+    "sample_size":68
+  },
+  "('SNYK-JS-YARGSPARSER-560381', 4)":{
+    "count":10001,
+    "sample_size":68
+  },
+  "('SNYK-JS-LODASH-73638', 4)":{
+    "count":1280,
+    "sample_size":65
+  },
+  "('SNYK-JS-KINDOF-537849', 4)":{
+    "count":22351,
+    "sample_size":68
+  },
+  "('SNYK-JS-MINIMATCH-10105', 4)":{
+    "count":3366,
+    "sample_size":67
+  },
+  "('SNYK-JS-QS-10407', 4)":{
+    "count":938,
+    "sample_size":64
+  },
+  "('SNYK-JS-DEBUG-10762', 4)":{
+    "count":895,
+    "sample_size":63
+  },
+  "('SNYK-JS-HOEK-12061', 4)":{
+    "count":4769,
+    "sample_size":67
+  },
+  "('SNYK-JS-MINIMIST-559764', 5)":{
+    "count":21378,
+    "sample_size":68
+  },
+  "('SNYK-JS-YARGSPARSER-560381', 5)":{
+    "count":4145,
+    "sample_size":67
+  },
+  "('SNYK-JS-LODASH-73638', 5)":{
+    "count":5695,
+    "sample_size":67
+  },
+  "('SNYK-JS-KINDOF-537849', 5)":{
+    "count":10674,
+    "sample_size":68
+  },
+  "('SNYK-JS-MINIMATCH-10105', 5)":{
+    "count":5731,
+    "sample_size":67
+  },
+  "('SNYK-JS-QS-10407', 5)":{
+    "count":375,
+    "sample_size":58
+  },
+  "('SNYK-JS-DEBUG-10762', 5)":{
+    "count":162,
+    "sample_size":48
+  },
+  "('SNYK-JS-HOEK-12061', 5)":{
+    "count":1262,
+    "sample_size":65
+  },
+  "('SNYK-JS-MINIMIST-559764', 6)":{
+    "count":10093,
+    "sample_size":68
+  },
+  "('SNYK-JS-YARGSPARSER-560381', 6)":{
+    "count":2395,
+    "sample_size":66
+  },
+  "('SNYK-JS-LODASH-73638', 6)":{
+    "count":679,
+    "sample_size":62
+  },
+  "('SNYK-JS-KINDOF-537849', 6)":{
+    "count":3893,
+    "sample_size":67
+  },
+  "('SNYK-JS-MINIMATCH-10105', 6)":{
+    "count":685,
+    "sample_size":62
+  },
+  "('SNYK-JS-QS-10407', 6)":{
+    "count":44,
+    "sample_size":27
+  },
+  "('SNYK-JS-DEBUG-10762', 6)":{
+    "count":33,
+    "sample_size":23
+  },
+  "('SNYK-JS-HOEK-12061', 6)":{
+    "count":392,
+    "sample_size":58
+  },
+  "('SNYK-JS-MINIMIST-559764', 7)":{
+    "count":2486,
+    "sample_size":66
+  },
+  "('SNYK-JS-YARGSPARSER-560381', 7)":{
+    "count":239,
+    "sample_size":53
+  },
+  "('SNYK-JS-LODASH-73638', 7)":{
+    "count":120,
+    "sample_size":44
+  },
+  "('SNYK-JS-KINDOF-537849', 7)":{
+    "count":1195,
+    "sample_size":65
+  },
+  "('SNYK-JS-MINIMATCH-10105', 7)":{
+    "count":121,
+    "sample_size":44
+  },
+  "('SNYK-JS-QS-10407', 7)":{
+    "count":1,
+    "sample_size":1
+  },
+  "('SNYK-JS-DEBUG-10762', 7)":{
+    "count":4,
+    "sample_size":4
+  },
+  "('SNYK-JS-HOEK-12061', 7)":{
+    "count":75,
+    "sample_size":36
+  },
+  "('SNYK-JS-MINIMIST-559764', 8)":{
+    "count":265,
+    "sample_size":55
+  },
+  "('SNYK-JS-YARGSPARSER-560381', 8)":{
+    "count":93,
+    "sample_size":40
+  },
+  "('SNYK-JS-LODASH-73638', 8)":{
+    "count":21,
+    "sample_size":17
+  },
+  "('SNYK-JS-KINDOF-537849', 8)":{
+    "count":1190,
+    "sample_size":65
+  },
+  "('SNYK-JS-MINIMATCH-10105', 8)":{
+    "count":27,
+    "sample_size":20
+  },
+  "('SNYK-JS-QS-10407', 8)":{
+    "count":0,
+    "sample_size":0
+  },
+  "('SNYK-JS-DEBUG-10762', 8)":{
+    "count":1,
+    "sample_size":1
+  },
+  "('SNYK-JS-HOEK-12061', 8)":{
+    "count":12,
+    "sample_size":11
+  },
+  "('SNYK-JS-MINIMIST-559764', 9)":{
+    "count":52,
+    "sample_size":30
+  },
+  "('SNYK-JS-YARGSPARSER-560381', 9)":{
+    "count":16,
+    "sample_size":14
+  },
+  "('SNYK-JS-LODASH-73638', 9)":{
+    "count":7,
+    "sample_size":7
+  },
+  "('SNYK-JS-KINDOF-537849', 9)":{
+    "count":2166,
+    "sample_size":66
+  },
+  "('SNYK-JS-MINIMATCH-10105', 9)":{
+    "count":7,
+    "sample_size":7
+  },
+  "('SNYK-JS-QS-10407', 9)":{
+    "count":0,
+    "sample_size":0
+  },
+  "('SNYK-JS-DEBUG-10762', 9)":{
+    "count":0,
+    "sample_size":0
+  },
+  "('SNYK-JS-HOEK-12061', 9)":{
+    "count":2,
+    "sample_size":2
+  },
+  "('SNYK-JS-MINIMIST-559764', 10)":{
+    "count":9,
+    "sample_size":9
+  },
+  "('SNYK-JS-YARGSPARSER-560381', 10)":{
+    "count":10,
+    "sample_size":9
+  },
+  "('SNYK-JS-LODASH-73638', 10)":{
+    "count":3,
+    "sample_size":3
+  },
+  "('SNYK-JS-KINDOF-537849', 10)":{
+    "count":314,
+    "sample_size":56
+  },
+  "('SNYK-JS-MINIMATCH-10105', 10)":{
+    "count":3,
+    "sample_size":3
+  },
+  "('SNYK-JS-QS-10407', 10)":{
+    "count":0,
+    "sample_size":0
+  },
+  "('SNYK-JS-DEBUG-10762', 10)":{
+    "count":0,
+    "sample_size":0
+  },
+  "('SNYK-JS-HOEK-12061', 10)":{
+    "count":0,
+    "sample_size":0
+  },
+  "('SNYK-JS-MINIMIST-559764', 11)":{
+    "count":0,
+    "sample_size":0
+  },
+  "('SNYK-JS-YARGSPARSER-560381', 11)":{
+    "count":4,
+    "sample_size":4
+  },
+  "('SNYK-JS-LODASH-73638', 11)":{
+    "count":0,
+    "sample_size":0
+  },
+  "('SNYK-JS-KINDOF-537849', 11)":{
+    "count":231,
+    "sample_size":53
+  },
+  "('SNYK-JS-MINIMATCH-10105', 11)":{
+    "count":0,
+    "sample_size":0
+  },
+  "('SNYK-JS-QS-10407', 11)":{
+    "count":0,
+    "sample_size":0
+  },
+  "('SNYK-JS-DEBUG-10762', 11)":{
+    "count":0,
+    "sample_size":0
+  },
+  "('SNYK-JS-HOEK-12061', 11)":{
+    "count":0,
+    "sample_size":0
+  },
+  "('SNYK-JS-MINIMIST-559764', 12)":{
+    "count":0,
+    "sample_size":0
+  },
+  "('SNYK-JS-YARGSPARSER-560381', 12)":{
+    "count":0,
+    "sample_size":0
+  },
+  "('SNYK-JS-LODASH-73638', 12)":{
+    "count":0,
+    "sample_size":0
+  },
+  "('SNYK-JS-KINDOF-537849', 12)":{
+    "count":80,
+    "sample_size":37
+  },
+  "('SNYK-JS-MINIMATCH-10105', 12)":{
+    "count":0,
+    "sample_size":0
+  },
+  "('SNYK-JS-QS-10407', 12)":{
+    "count":0,
+    "sample_size":0
+  },
+  "('SNYK-JS-DEBUG-10762', 12)":{
+    "count":0,
+    "sample_size":0
+  },
+  "('SNYK-JS-HOEK-12061', 12)":{
+    "count":0,
+    "sample_size":0
+  },
+  "('SNYK-JS-MINIMIST-559764', 13)":{
+    "count":0,
+    "sample_size":0
+  },
+  "('SNYK-JS-YARGSPARSER-560381', 13)":{
+    "count":0,
+    "sample_size":0
+  },
+  "('SNYK-JS-LODASH-73638', 13)":{
+    "count":0,
+    "sample_size":0
+  },
+  "('SNYK-JS-KINDOF-537849', 13)":{
+    "count":24,
+    "sample_size":18
+  },
+  "('SNYK-JS-MINIMATCH-10105', 13)":{
+    "count":0,
+    "sample_size":0
+  },
+  "('SNYK-JS-QS-10407', 13)":{
+    "count":0,
+    "sample_size":0
+  },
+  "('SNYK-JS-DEBUG-10762', 13)":{
+    "count":0,
+    "sample_size":0
+  },
+  "('SNYK-JS-HOEK-12061', 13)":{
+    "count":0,
+    "sample_size":0
+  },
+  "('SNYK-JS-MINIMIST-559764', 14)":{
+    "count":1,
+    "sample_size":1
+  },
+  "('SNYK-JS-YARGSPARSER-560381', 14)":{
+    "count":0,
+    "sample_size":0
+  },
+  "('SNYK-JS-LODASH-73638', 14)":{
+    "count":0,
+    "sample_size":0
+  },
+  "('SNYK-JS-KINDOF-537849', 14)":{
+    "count":13,
+    "sample_size":12
+  },
+  "('SNYK-JS-MINIMATCH-10105', 14)":{
+    "count":0,
+    "sample_size":0
+  },
+  "('SNYK-JS-QS-10407', 14)":{
+    "count":0,
+    "sample_size":0
+  },
+  "('SNYK-JS-DEBUG-10762', 14)":{
+    "count":0,
+    "sample_size":0
+  },
+  "('SNYK-JS-HOEK-12061', 14)":{
+    "count":0,
+    "sample_size":0
+  },
+  "('SNYK-JS-MINIMIST-559764', 15)":{
+    "count":0,
+    "sample_size":0
+  },
+  "('SNYK-JS-YARGSPARSER-560381', 15)":{
+    "count":0,
+    "sample_size":0
+  },
+  "('SNYK-JS-LODASH-73638', 15)":{
+    "count":0,
+    "sample_size":0
+  },
+  "('SNYK-JS-KINDOF-537849', 15)":{
+    "count":3,
+    "sample_size":3
+  },
+  "('SNYK-JS-MINIMATCH-10105', 15)":{
+    "count":0,
+    "sample_size":0
+  },
+  "('SNYK-JS-QS-10407', 15)":{
+    "count":0,
+    "sample_size":0
+  },
+  "('SNYK-JS-DEBUG-10762', 15)":{
+    "count":0,
+    "sample_size":0
+  },
+  "('SNYK-JS-HOEK-12061', 15)":{
+    "count":0,
+    "sample_size":0
+  }
+}
