@@ -238,10 +238,16 @@ async function main() {
             console.log(`Analysis ${msg.task.analysis_id} finished - ${msg.success ? "SUCCESS" : "FAILED"}`);
 
             // Save the analysis to the dict
-            let analysis = _.omit(msg.task, 'sampleKey');
+            let analysis = msg.task;
             analysis.success = msg.success;
             analysisDict.push(analysis);
             fs.writeFileSync(`${outputFolder}/$dict.json`, JSON.stringify(analysisDict, null, 2));
+
+            // Log success progress
+            let sampleKey = msg.task.sampleKey;
+            let sampleSuccesses = analysisDict.filter(a => a.sampleKey === sampleKey && a.success).length;
+            let sampleSize = sampleSizes[sampleKey]?.sample_size || 100; // Default to 100 if not specified
+            console.log(`${sampleKey} - ${sampleSuccesses} results out of ${sampleSize} required samples (${(sampleSuccesses / sampleSize * 100).toFixed(2)}%)`);
 
             worker.terminate();
             runningThreads--;
