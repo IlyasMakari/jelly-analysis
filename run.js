@@ -196,10 +196,10 @@ async function runAnalysis(analysis) {
             namePathsFiltered: namePathsFiltered,
         }));
 
-        // If rangePathsFiltered is empty, throw an error
-        if (rangePathsFiltered.length === 0) {
-            console.error(`(${analysis.analysis_id}) No paths found for the vulnerable range ${range}`);
-            throw new Error(`No paths found for the vulnerable range ${range}`);
+        // If namePathsFiltered is empty, throw an error
+        if (namePathsFiltered.length === 0) {
+            console.error(`(${analysis.analysis_id}) No paths of level ${analysis.level} found from ${analysis.package} to ${analysis.dependency}`);
+            throw new Error(`(${analysis.analysis_id}) No paths of level ${analysis.level} found from ${analysis.package} to ${analysis.dependency}`);
         }
 
         // Run Jelly
