@@ -242,7 +242,7 @@ function createSchedule(levels, vulnerabilities, sampleSizes) {
             const dataset = JSON.parse(fs.readFileSync(`selections_new/dependencies/${vuln}-level-${i}.json`, "utf8"));
 
             // Get the sample size for this combination
-            const sampleKey = `('${vuln}', ${i})`;
+            const sampleKey = `('${vuln}', ${i - 1})`;
             const sampleSize = sampleSizes[sampleKey]?.sample_size || 100; // Default to 100 if not specified
 
             // Select the sample and the remaining items
