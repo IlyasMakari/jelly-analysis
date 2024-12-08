@@ -183,8 +183,8 @@ async function runAnalysis(analysis) {
 
         console.log(`(${analysis.analysis_id}) Vulnerable range: ${range} | Vulnerable range paths: ${rangePaths.length} (${rangePathsFiltered.length} filtered) | Specific paths: ${specificPaths.length} (${specificPathsFiltered.length} filtered) | Name paths: ${namePaths.length} (${namePathsFiltered.length} filtered)`);
 
-        // Only analyze the dependencies that are in the vulnerable range
-        const include_packages = [...new Set(rangePathsFiltered.flat().map(e => e.substr(e, e.lastIndexOf('@'))))];
+        // Only analyze the paths that are of the correct level
+        const include_packages = [...new Set(namePathsFiltered.flat().map(e => e.substr(e, e.lastIndexOf('@'))))];
 
         // Make a file to store the 3 types of paths
         fs.writeFileSync(`${analysis.outputFolder}/${analysis.analysis_id}-paths.json`, JSON.stringify({
