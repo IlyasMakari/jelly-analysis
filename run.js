@@ -4,6 +4,11 @@ const execSync = require('child_process').execSync;
 const spawnSync = require('child_process').spawnSync;
 const spawn = require('child_process').spawn;
 var ls = require('npm-remote-ls').ls;
+var lsconfig = require('npm-remote-ls').config;
+lsconfig({
+    development: false,
+    optional: false
+});
 const _ = require("lodash");
 const yargs = require('yargs');
 const os = require('os');
@@ -42,7 +47,7 @@ async function runJelly(analysisId, vulnId, packageName, includePackages, output
     const jellyArgs = [
         '-c',
         `export NODE_OPTIONS="--max-old-space-size=65536" && npm run start --max-old-space-size=65536 -- \
-            -j ../${outputFolder}/${analysisId}.json \
+            --approx -j ../${outputFolder}/${analysisId}.json \
             -m ../${outputFolder}/${analysisId}.html \
             -b ../code/${analysisId} -v ../vulnerability_definitions/${vulnId}.json \
             --api-exported ../code/${analysisId}/node_modules/${packageName} \
@@ -231,23 +236,55 @@ async function runAnalysis(analysis) {
 
 }
 
-function createSchedule(levels, vulnerabilities, sampleSizes) {
+function createSchedule(levels, vulnerabilities, sampleSizes, checkpointData) {
     let tasks = []
     let remainingItems = {};
-    let analysis_id = 1;
+
+    // Convert checkpoint data into a Set for efficient lookup
+    const checkpointSet = new Set(
+        checkpointData.map(item =>
+            JSON.stringify({
+                vuln_id: item.vuln_id,
+                dependency: item.dependency,
+                package: item.package,
+                level: item.level, // Level as-is from checkpoint
+                version: item.version,
+                dep_version: item.dep_version,
+            })
+        )
+    );
+
     levels.forEach(i => {
         vulnerabilities.forEach(vuln => {
+
+            const sampleKey = `('${vuln}', ${i - 1})`;
 
             // Read the full dataset for this vulnerability and level combination
             const dataset = JSON.parse(fs.readFileSync(`selections_new/dependencies/${vuln}-level-${i}.json`, "utf8"));
 
+            // Filter out items already present in the checkpoint
+            const filteredDataset = dataset.filter(item => {
+                const levelFromOrder = item.order + 1; // Convert order (0-based) to level (1-based)
+                const uniqueKey = JSON.stringify({
+                    vuln_id: item.id,
+                    dependency: item.dependency,
+                    package: item.package,
+                    level: levelFromOrder, // Use calculated level for comparison
+                    version: item.version,
+                    dep_version: item.dep_version,
+                });
+                return !checkpointSet.has(uniqueKey);
+            });
+            
+            // Log the size of the dataset
+            console.log(`SampleKey: ${sampleKey} | Size: from ${dataset.length} to ${filteredDataset.length}`);
+
             // Get the sample size for this combination
-            const sampleKey = `('${vuln}', ${i - 1})`;
-            const sampleSize = sampleSizes[sampleKey]?.sample_size || 100; // Default to 100 if not specified
+            const sampleSize = sampleSizes[sampleKey]?.sample_size ?? 100; // Default to 100 if not specified
 
             // Select the sample and the remaining items
-            const sample = dataset.slice(0, sampleSize);
-            const remaining = dataset.slice(sampleSize); // Spare items
+            const sample = filteredDataset.slice(0, sampleSize);
+            const remaining = filteredDataset.slice(sampleSize); // Spare items
 
             // Add tasks for the sample (no analysis_id yet)
             sample.forEach((selection) => {
@@ -284,6 +321,8 @@ async function main() {
         })
         .option("vulns", { alias: "v", type: "array", description: "List of vulnerabilities", demandOption: true })
         .option("threads", { alias: "t", type: "number", description: "Number of concurrent threads", default: os.cpus().length })
+        .option("startId", { alias: "s", type: "number", description: "Start counting from this ID (default 1)", demandOption: false })
+        .option("checkpoint", { alias: "c", type: "string", description: "Path to a $dict.json file", demandOption: false })
         .help()
         .argv;
 
@@ -312,11 +351,63 @@ async function main() {
     let analysisDict = [];
     fs.writeFileSync(`${outputFolder}/$dict.json`, JSON.stringify(analysisDict, null, 2));
 
-    // Create schedule
-    const { tasks, remainingItems } = createSchedule(argv.levels, argv.vulns, sampleSizes);
-
     // Initialize progress tracking
-    let currentAnalysisId = 1; // Tracks the next analysis ID to assign
+    let currentAnalysisId = 1; // Default starting ID
+
+    // Handle checkpoint
+    let checkpointData = [];
+    if (argv.checkpoint) {
+        try {
+            checkpointData = JSON.parse(fs.readFileSync(argv.checkpoint, 'utf8'));
+            analysisDict = checkpointData; // Load the checkpoint data into the analysis dict
+            const maxAnalysisId = Math.max(...checkpointData.map(entry => entry.analysis_id));
+            currentAnalysisId = maxAnalysisId + 1;
+            console.log(`Loaded checkpoint from ${argv.checkpoint}, max analysis ID: ${maxAnalysisId}`);
+
+            // Populate successfulCounts based on sampleKey
+            const successfulCounts = {};
+            checkpointData.forEach(entry => {
+                if (entry.success) {
+                    const sampleKey = entry.sampleKey;
+                    successfulCounts[sampleKey] = (successfulCounts[sampleKey] || 0) + 1;
+                }
+            });
+
+            // Adjust sample sizes based on checkpoint
+            Object.keys(sampleSizes).forEach(sampleKey => {
+                if (successfulCounts[sampleKey]) {
+                    const oldSampleSize = sampleSizes[sampleKey].sample_size; // Store the old sample size
+
+                    // Subtract the count of successful benchmarks from the sample_size
+                    sampleSizes[sampleKey].sample_size -= successfulCounts[sampleKey];
+
+                    // Ensure sample_size doesn't drop below zero
+                    if (sampleSizes[sampleKey].sample_size < 0) {
+                        sampleSizes[sampleKey].sample_size = 0;
+                    }
+
+                    const newSampleSize = sampleSizes[sampleKey].sample_size; // Store the new sample size
+
+                    // Log the change
+                    console.log(
+                        `SampleKey: ${sampleKey} | Old Sample Size: ${oldSampleSize} | New Sample Size: ${newSampleSize} | Successful Count: ${successfulCounts[sampleKey]}`
+                    );
+                }
+            });
+
+        } catch (error) {
+            console.error(`Failed to load checkpoint file: ${error.message}`);
+            process.exit(1);
+        }
+    }
+
+    // Create schedule
+    const { tasks, remainingItems } = createSchedule(argv.levels, argv.vulns, sampleSizes, checkpointData);
+
+    // If startId is explicitly provided, override any other value for currentAnalysisId
+    if (argv.startId) {
+        currentAnalysisId = argv.startId;
+    }
     
     // Start workers and manage tasks
     let runningThreads = 0;
@@ -340,7 +431,7 @@ async function main() {
             // Log success progress
             let sampleKey = msg.task.sampleKey;
             let sampleSuccesses = analysisDict.filter(a => a.sampleKey === sampleKey && a.success).length;
-            let sampleSize = sampleSizes[sampleKey]?.sample_size || 100; // Default to 100 if not specified
+            let sampleSize = sampleSizes[sampleKey]?.sample_size ?? 100; // Default to 100 if not specified
             console.log(`${sampleKey} - ${sampleSuccesses} results out of ${sampleSize} required samples (${(sampleSuccesses / sampleSize * 100).toFixed(2)}%)`);
 
             worker.terminate();
