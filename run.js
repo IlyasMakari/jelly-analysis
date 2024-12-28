@@ -17,6 +17,7 @@ const semver = require('semver');
 
 const JELLY_TIMEOUT_SECONDS = 5 * 60; // 5 minutes
 const INSTALL_TIMEOUT_SECONDS = 5 * 60; // 5 minutes
+const ANALYZE_OUTPUT_TIMEOUT_SECONDS = 5 * 60; // 5 minutes
 
 function executeCommand(command, args, options = {}) {
     return new Promise((resolve, reject) => {
@@ -54,6 +55,12 @@ async function runJelly(analysisId, vulnId, packageName, includePackages, output
             --timeout 300 --external-matches --proto ${includePackages.length > 0 ? "--include-packages " + includePackages.join(" ") : ""}`,
     ];
     return await executeCommand('sh', jellyArgs, { cwd: "jelly-master", timeout: JELLY_TIMEOUT_SECONDS * 1000 });
+}
+
+async function analyzeJellyOutput(analysis) {
+    return await executeCommand('python3', ['analysis_functions.py', analysis.outputFolder, JSON.stringify(analysis)], {
+        timeout: ANALYZE_OUTPUT_TIMEOUT_SECONDS * 1000,
+    });
 }
 
 async function installPackage(packageName, version, analysisId) {
@@ -215,7 +222,12 @@ async function runAnalysis(analysis) {
         const endTime = Date.now();
         analysis.execitionTime = endTime - startTime;
 
+        // Analyze the Jelly output
+        analysis.success = true;
+        await analyzeJellyOutput(analysis);
+
         // Return the analysis with success
+        analysis.result = true;
         return { task: analysis, success: true };
 
     }
