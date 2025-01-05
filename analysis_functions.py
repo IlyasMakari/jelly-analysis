@@ -43,12 +43,12 @@ possible_module_names = {
 
 possible_function_names = {
     "SNYK-JS-LODASH-73638": ["defaultsDeep", "merge", "mergeWith"],
-    "SNYK-JS-MINIMIST-559764": [],
+    "SNYK-JS-MINIMIST-559764": ["<minimist>.prototype.constructor"],
 
     "SNYK-JS-KINDOF-537849": ["kindOf", "ctorName"],
     "SNYK-JS-MINIMATCH-10105": ["minimatch", "Minimatch","match", "parse", "make"],
     "SNYK-JS-QS-10407": ["parse", "parseString"],
-    "SNYK-JS-HOEK-12061": ["merge", "applyToDefault", "applyToDefaultWithShallow"],
+    "SNYK-JS-HOEK-12061": ["merge", "applyToDefaults", "applyToDefaultsWithShallow"],
     "SNYK-JS-DEBUG-10762": ["debug"],
     "SNYK-JS-YARGSPARSER-560381": ["Parser", "yargsParser", "parse"]
 }
@@ -149,13 +149,17 @@ def parse_vulnerable_calls_file(filename):
         start_line, start_col, end_line, end_col = file_and_locs[1], file_and_locs[2], file_and_locs[3], file_and_locs[4]
         location = f"{start_line}:{start_col}:{end_line}:{end_col}"
 
-        file_parts = file_path.split('/', 1)
-        if len(file_parts) == 2:
-            package_name = file_parts[0]
-            module_name = file_parts[1]
+        def split_at_pos(str, sep, pos):
+            str = str.split(sep)
+            return sep.join(str[:pos]), sep.join(str[pos:])
+
+        if(file_path.startswith("@")):
+            file_parts = split_at_pos(file_path, "/", 2)
         else:
-            package_name = file_path
-            module_name = ""
+            file_parts = split_at_pos(file_path, "/", 1)
+
+        package_name = file_parts[0]
+        module_name = file_parts[1]
 
         results.append({
             "package": package_name,
@@ -164,8 +168,6 @@ def parse_vulnerable_calls_file(filename):
             "pattern": pattern_str,
             "location": location
         })
-
-    # print(results)
 
     return results
 
@@ -220,11 +222,9 @@ def ancestors(element, json_graph):
 
 import re
 
-def find_closest_wrapping_function(location, functions, json_graph, module_name, package_name):
+def find_closest_wrapping_function_or_module(location, functions, json_graph, module_name, package_name):
     wrapper = {}
     current_distance = np.inf
-
-    # print(f"find_closest_wrapping_function({location}, {functions}, {json_graph}, {module_name}, {package_name})")
 
     # Filter functions by module_name and package_name
     filtered_functions = []
@@ -260,28 +260,39 @@ def find_closest_wrapping_function(location, functions, json_graph, module_name,
                     wrapper = fun
         except Exception as e:
             print(f"Skipping function due to error: {e}, fun: {fun}")
+    
+    if not wrapper:
+        # If the pattern occurs at the top level, the closest wrapping function is the module itself
+        modules = list(filter(lambda el: el["kind"] == 'module' and el["name"] == module_name, json_graph))
+        modules_with_ancestor_list = list(map(lambda el: (el, ancestors(el, json_graph)), modules))
+        modules_with_ancestor_list = list(filter(lambda el: any(ancestor.get("kind") == "package" and ancestor.get("name") == package_name for ancestor in el[1]), modules_with_ancestor_list))
+
+        if len(modules_with_ancestor_list) > 0:
+            wrapper = modules_with_ancestor_list[0][0]
+        else:
+            print(f"Could not find a wrapping module: {location}, module_name: {module_name}, package_name: {package_name}")
 
     return wrapper
 
 
-def reachable_patterns(matches, json_graph, top_dependent):
-  reachable = []
-  for pattern_match in matches:
-    package = next(filter(lambda el: el["kind"] == 'package' and el["name"] in pattern_match[2], json_graph))
-    if top_dependent == package["name"]:
-      # The pattern was found on the top dependent, so it will be assumed to be reachable, because why wouldn't it be?
-      # [TODO] Maybe check via its module if it's reachable for more accuracy, this could possibly rule out unit tests (not sure)
-      reachable.append(pattern_match)
-    else:
-      possible_modules = filter(lambda el: el["kind"] == 'module' and package in ancestors(el, json_graph), json_graph)
-      module = list(filter(lambda el: el["name"] in pattern_match[2], possible_modules))
-      if len(module) == 0: continue
-      functions = list(filter(lambda el: el["kind"] == 'function' and module[0] in ancestors(el, json_graph), json_graph))
-      pattern_location = list(map(lambda el: int(el), pattern_match[2].split(":")[-4:]))
-      wrapper_function = find_closest_wrapping_function(pattern_location, functions)
-      if "isReachable" in wrapper_function and wrapper_function["isReachable"] == "true":
-        reachable.append(pattern_match)
-  return reachable
+# def reachable_patterns(matches, json_graph, top_dependent):
+#   reachable = []
+#   for pattern_match in matches:
+#     package = next(filter(lambda el: el["kind"] == 'package' and el["name"] in pattern_match[2], json_graph))
+#     if top_dependent == package["name"]:
+#       # The pattern was found on the top dependent, so it will be assumed to be reachable, because why wouldn't it be?
+#       # [TODO] Maybe check via its module if it's reachable for more accuracy, this could possibly rule out unit tests (not sure)
+#       reachable.append(pattern_match)
+#     else:
+#       possible_modules = filter(lambda el: el["kind"] == 'module' and package in ancestors(el, json_graph), json_graph)
+#       module = list(filter(lambda el: el["name"] in pattern_match[2], possible_modules))
+#       if len(module) == 0: continue
+#       functions = list(filter(lambda el: el["kind"] == 'function' and module[0] in ancestors(el, json_graph), json_graph))
+#       pattern_location = list(map(lambda el: int(el), pattern_match[2].split(":")[-4:]))
+#       wrapper_function = find_closest_wrapping_function_or_module(pattern_location, functions)
+#       if "isReachable" in wrapper_function and wrapper_function["isReachable"] == "true":
+#         reachable.append(pattern_match)
+#   return reachable
 
 
 # TODO: check for level because in some cases the package is included 10 times in the graphs at different levels, but we only care about a certain level
@@ -353,7 +364,7 @@ def create_dag(json_graph, granularity="package", output_txt=None, vuln_id=None)
     json_graph_requires = list(filter(lambda el: el["kind"] == 'require', json_graph))
 
     if granularity == "function":
-      edges = json_graph_calls
+      edges = json_graph_calls + json_graph_requires
       
       # Create a lookup dict to find nodes by id
       id_to_node = {el["id"]: el for el in json_graph_elements}
@@ -434,37 +445,43 @@ def create_dag(json_graph, granularity="package", output_txt=None, vuln_id=None)
             for call in parsed_calls
           ]
 
-          # Find target function IDs, ensuring they belong to the correct module and package
+          # Find wrapper function or module IDs where patterns are found, ensuring they belong to the correct module and package
           target_ids = [
-              func_id for location, module, package in locations_modules_packages
-              if (func_id := find_closest_wrapping_function(location, json_graph_elements, json_graph, module_name=module, package_name=package).get("id", None)) is not None
+              func_or_module_id for location, module, package in locations_modules_packages
+              if (func_or_module_id := find_closest_wrapping_function_or_module(location, json_graph_elements, json_graph, module_name=module, package_name=package).get("id", None)) is not None
           ]
-          
-        #   locations = map(lambda el: list(map(int, el["location"].split(':'))), parse_vulnerable_calls_file(output_txt))          
-        #   target_ids = [func_id for location in locations if (func_id := find_closest_wrapping_function(location, json_graph_elements).get("id", None)) is not None]
-
 
           pacakge_name = next((el["name"] for el in json_graph if el.get('id') == 1), None) 
-          entry_ids = list(set(map(lambda el: el["location"], get_exported_api_objects(output_txt, packages=[pacakge_name]))))
+          entry_locations = list(set(map(lambda el: el["location"], get_exported_api_objects(output_txt, packages=[pacakge_name]))))
+          vulnerable_locations = list(set(map(lambda el: el["location"], get_exported_api_objects(output_txt, packages=possible_package_names[vuln_id], functions=possible_function_names[vuln_id]))))
           vuln_functions = possible_function_names[vuln_id]
 
-          for element in json_graph_elements:
+          for element in json_graph_modules:
               if element["id"] in target_ids:
-                  # target ids = function locations where a pattern was found 
                   element["isTarget"] = True
               else:
                   element["isTarget"] = False
 
-              if element["name"].split(" ")[1] in entry_ids:
+          for element in json_graph_elements:
+              if element["id"] in target_ids:
+                  element["isTarget"] = True
+              else:
+                  element["isTarget"] = False
+
+              if element["name"].split(" ")[1] in entry_locations:
                   element["isEntry"] = True
               else:
                   element["isEntry"] = False
 
-              if (
+
+              vulnerable_check = element["name"].split(" ")[1] in vulnerable_locations
+              vulnerable_check_backup = (
                   element["name"].split(" ")[0] in vuln_functions
                   and any(pkg + "@" in element["fullName"] for pkg in possible_package_names[vuln_id])
                   and any(mod in element["fullName"] for mod in possible_module_names[vuln_id])
-              ):
+              )
+
+              if vulnerable_check or vulnerable_check_backup:
                   element["isVulnerable"] = True
               else:
                   element["isVulnerable"] = False
@@ -491,23 +508,44 @@ def create_interactive_graph(dag, filename):
 
      # Add nodes to the graph
     for node, attrs in dag.nodes(data=True):
-        # Check for root node (id == 1) and color it red
-        if attrs.get('id') == 1:
-            net.add_node(node, label=attrs.get('label', str(node)), title=str(attrs), color="red")
-        # Check for module nodes with 'isEntry' == "true" and color it yellow
-        elif attrs.get('kind') == 'module' and attrs.get('isEntry') == "true":
-            net.add_node(node, label=attrs.get('label', str(node)), title=str(attrs), color="orange")
-        elif attrs.get('kind') == 'function' and attrs.get('isEntry') == True:
-            net.add_node(node, label=attrs.get('label', str(node)), title=str(attrs), color="yellow") # TODO: allow overlap of entry and target
-        elif attrs.get('kind') == 'function' and attrs.get('isVulnerable') == True:
-            net.add_node(node, label=attrs.get('label', str(node)), title=str(attrs), color="purple") # TODO: allow overlap of entry and target
-        elif attrs.get('kind') == 'function' and attrs.get('isTarget') == True:
-            net.add_node(node, label=attrs.get('label', str(node)), title=str(attrs), color="red")
+
+        if attrs.get('kind') == 'package':
+            shape = 'square'
+            # yellow if root package
+            if attrs.get('id') == 1: 
+                color = "yellow"
+            else:    
+                color = None 
+
         elif attrs.get('kind') == 'module':
-            net.add_node(node, label=attrs.get('label', str(node)), title=str(attrs), color="black")
-        else:
-            # Default coloring for other nodes
-            net.add_node(node, label=attrs.get('label', str(node)), title=str(attrs))
+            shape = 'box'
+            # yellow if module is entry
+            if attrs.get('isEntry') == "true" and attrs.get('isTarget') == True:
+                color = {"background": "yellow", "border": "red"}
+            elif attrs.get('isEntry') == "true":
+                color = "yellow"
+            elif attrs.get('isTarget') == True:
+                color = "red"
+            else:    
+                color = None 
+
+        elif attrs.get('kind') == 'function':
+            shape = 'dot'
+            # yellow if function is entry, purple if function is vulnerable, red if function contains pattern
+            if attrs.get('isEntry') == True and attrs.get('isTarget') == True:
+                color = {"background": "yellow", "border": "red"}
+            elif attrs.get('isEntry') == True:
+                color = "yellow"
+            elif attrs.get('isVulnerable') == True and attrs.get('isTarget') == True:
+                color = {"background": "purple", "border": "red"}
+            elif attrs.get('isVulnerable') == True:
+                color = "purple"
+            elif attrs.get('isTarget') == True:
+                color = "red"
+            else:
+                color = None
+
+        net.add_node(node, label=attrs.get('label', str(node)), title=str(attrs), color=color, shape=shape)
 
     # Add edges, including the 'kind' information for each edge
     for source, target, key, data in dag.edges(data=True, keys=True):
@@ -677,7 +715,7 @@ class TimeoutException(Exception):
 def timeout_handler(signum, frame):
     raise TimeoutException("TimeoutError: Analysis exceeded 15 minutes")
 
-def analyze_output(path, analyses):
+def analyze_output(path, analyses, rerun=False):
     # analyses["module_found"] = False
     # analyses["package_found"] = False
     # analyses["reachable_module"] = False
@@ -713,7 +751,7 @@ def analyze_output(path, analyses):
         signal.signal(signal.SIGALRM, timeout_handler)
         signal.alarm(10 * 60)  # Set the alarm for 5 minutes per analysis_id
         try:
-            if os.path.isfile(f"{path}/{analysis_id}-result.csv"):
+            if not rerun and os.path.isfile(f"{path}/{analysis_id}-result.csv"):
                 csv_df = pd.read_csv(f"{path}/{analysis_id}-result.csv")
                 first_row = csv_df.iloc[0].to_dict()
                 for column, value in first_row.items():
@@ -782,10 +820,10 @@ def analyze_output(path, analyses):
                 package_function_paths_found = []
                 package_function_paths_only_patterns_found = []
                 for vpath in metadata_paths_found:
-                    if check_function_path_exists_dfs(function_dag, vpath, include_children=True, only_patterns=False):
+                    if check_function_path_exists_dfs(function_dag, vpath, include_children=False, only_patterns=False):
                         package_function_paths_found.append(vpath)
                 for vpath in metadata_paths_found_only_calls:
-                    if check_function_path_exists_dfs(function_dag, vpath, include_children=True, only_patterns=True):
+                    if check_function_path_exists_dfs(function_dag, vpath, include_children=False, only_patterns=True):
                         package_function_paths_only_patterns_found.append(vpath)
                 analyses.loc[analyses.analysis_id == analysis_id, "package_function_paths_found"] = len(package_function_paths_found)
                 analyses.loc[analyses.analysis_id == analysis_id, "package_function_paths_only_patterns_found"] = len(package_function_paths_only_patterns_found)
@@ -843,7 +881,7 @@ def analyze_output(path, analyses):
 
 
 
-def process_row(row_dict, output_folder):
+def process_row(row_dict, output_folder, rerun=False):
     """
     Processes a single row by calling the actual `analyze_output` function.
     """
@@ -851,7 +889,7 @@ def process_row(row_dict, output_folder):
     row_df = pd.DataFrame([row_dict])
 
     # Call the actual analyze_output function
-    updated_row_df = analyze_output(output_folder, row_df)
+    updated_row_df = analyze_output(output_folder, row_df, rerun=rerun)
 
     # Extract the updated row as a dictionary and return it
     return updated_row_df.iloc[0].to_dict()
@@ -863,7 +901,7 @@ def process_row_wrapper(args):
     return process_row(*args)
 
 
-def analyze_output_in_parallel(output_folder, analyses, threads=4):
+def analyze_output_in_parallel(output_folder, analyses, threads=4, rerun=False):
     """
     Parallelized wrapper for analyze_output.
 
@@ -886,7 +924,7 @@ def analyze_output_in_parallel(output_folder, analyses, threads=4):
 
     with ProcessPoolExecutor(max_workers=threads) as executor:
         # Pass rows as dictionaries along with output_folder
-        updated_rows = list(executor.map(process_row_wrapper, [(row, output_folder) for row in rows]))
+        updated_rows = list(executor.map(process_row_wrapper, [(row, output_folder, rerun) for row in rows]))
 
     # Update the original DataFrame with the modified rows
     for i, updated_row in enumerate(updated_rows):
@@ -983,8 +1021,8 @@ def check_module_path_exists_dfs(dag, path, vulnerable_node_ids, include_require
 
 
 
-
-def check_function_path_exists_dfs(dag, path, include_children=True, only_patterns=False):
+# TODO: include_top_level feature not finished
+def check_function_path_exists_dfs(dag, path, include_children=True, only_patterns=False, include_top_level=True):
     """
     Checks if a function path exists from any starting node to any ending node in the graph, following
     the package constraints defined in the 'path' argument, using DFS.
@@ -998,14 +1036,24 @@ def check_function_path_exists_dfs(dag, path, include_children=True, only_patter
     - bool: True if a valid path exists, False otherwise.
     """
     # Set the allowed edge types based on the include_children parameter
-    edge_types = ['call', 'child'] if include_children else ['call']
-    target_types = ['isTarget'] if only_patterns else ['isTarget', 'isVulnerable']
+    edge_types = ['call', 'require', 'child'] if include_children else ['call', 'require']
+    target_types = ['isTarget'] if only_patterns else ['isVulnerable']
 
     # Filter the DAG to include only the relevant edges (based on edge type)
     filtered_dag = dag.copy()
     for u, v, key, data in list(filtered_dag.edges(data=True, keys=True)):
+        
+        # Remove edges connected to modules if include_top_level is False
+        if (not include_top_level) and (dag.nodes[u]['kind'] == 'module' or dag.nodes[v]['kind'] == 'module'):
+            filtered_dag.remove_edge(u, v, key)
+
         if data.get('kind') not in edge_types:
             filtered_dag.remove_edge(u, v, key)
+
+    # # Remove nodes where 'kind' is 'module' if include_top_level is False
+    # if not include_top_level:
+    #     nodes_to_remove = [node for node, data in filtered_dag.nodes(data=True) if data.get('kind') == 'module']
+    #     filtered_dag.remove_nodes_from(nodes_to_remove)
 
     # Find all starting nodes that match the first package in the 'path'
     starting_nodes = [
@@ -1013,10 +1061,11 @@ def check_function_path_exists_dfs(dag, path, include_children=True, only_patter
         if attrs.get('isEntry') == "true" or attrs.get('isEntry') == True
     ]
 
-    # Find all ending nodes (location of vulnerable patterns)
+    # Find all ending nodes (location of vulnerable patterns and functions)
     ending_nodes = [
         node for node, attrs in dag.nodes(data=True)
-        if any(attrs.get(item) == True for item in target_types)
+        if any(attrs.get(item) == True for item in target_types) and
+        (include_top_level or attrs.get('kind') != 'module')
     ]
 
     # If there are no valid starting or ending nodes, return False immediately
@@ -1178,7 +1227,6 @@ def function_count_in_path(json_graph, packages):
             function_count += 1
 
     return function_count
-
 
 
 import argparse
