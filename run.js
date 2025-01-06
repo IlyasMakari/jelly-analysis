@@ -48,7 +48,7 @@ async function runJelly(analysisId, vulnId, packageName, includePackages, output
     const jellyArgs = [
         '-c',
         `export NODE_OPTIONS="--max-old-space-size=65536" && npm run start --max-old-space-size=65536 -- \
-            --approx -j ../${outputFolder}/${analysisId}.json \
+            -j ../${outputFolder}/${analysisId}.json \
             -m ../${outputFolder}/${analysisId}.html \
             -b ../code/${analysisId} -v ../vulnerability_definitions/${vulnId}.json \
             --api-exported ../code/${analysisId}/node_modules/${packageName} \
@@ -379,7 +379,7 @@ async function main() {
             // Populate successfulCounts based on sampleKey
             const successfulCounts = {};
             checkpointData.forEach(entry => {
-                if (entry.success) {
+                if ('result' in entry && entry.result) {
                     const sampleKey = entry.sampleKey;
                     successfulCounts[sampleKey] = (successfulCounts[sampleKey] || 0) + 1;
                 }
